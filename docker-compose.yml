@@ -1,0 +1,23 @@
+services:
+  app:
+    image: app:latest
+    build: ./webserver
+    ports:
+      - "3000:3000"
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx-gateway
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SERVER_NAME: ${SERVER_NAME}
+      SSL_CERT_FILE: ${SSL_CERT_FILE}
+      SSL_KEY_FILE: ${SSL_KEY_FILE}
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/conf.d:/etc/nginx/templates:ro
+      - ./config/nginx/certs:/etc/nginx/certs:ro
