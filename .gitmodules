@@ -1,5 +1,5 @@
 [submodule "webserver"]
-	path = webserver
+	path = aim_hi_webserver
 	url = git@github.com:gprice1129/aim_hi_webserver.git
 [submodule "aim_hi_chatbot"]
 	path = aim_hi_chatbot
