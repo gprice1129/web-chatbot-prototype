@@ -20,7 +20,7 @@ COPY package.json package-lock.json ./
 COPY packages/aim_hi_webserver/package.json packages/aim_hi_webserver/package.json
 COPY packages/aim_hi_chatbot/package.json packages/aim_hi_chatbot/package.json
 COPY --from=build /app/packages/aim_hi_webserver/build packages/aim_hi_webserver/build
-COPY --from=build /app/packages/aim_hi_chatbot/build packages/aim_hi_webserver/build
+COPY --from=build /app/packages/aim_hi_chatbot/build packages/aim_hi_chatbot/build
 
 RUN npm ci --omit=dev
 
