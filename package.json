@@ -1,0 +1,16 @@
+{
+  "name": "web-chatbot-prototype",
+  "private": true,
+  "workspaces": [
+    "packages/aim_hi_webserver",
+    "packages/aim_hi_chatbot"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "build:chatbot": "tsc -b packages/aim_hi_chatbot",
+    "build:webserver": "tsc -b packages/aim_hi_webserver"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/aim_hi_chatbot" },
+    { "path": "./packages/aim_hi_webserver" }
+  ]
+}
