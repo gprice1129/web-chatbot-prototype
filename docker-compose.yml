@@ -7,15 +7,22 @@ services:
       PGUSER: ${APP_DB_USER}
       PGPASSWORD: ${APP_DB_PASSWORD}
       PGDATABASE: ${APP_DB_NAME}
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
+      target: runtime
     depends_on:
       - postgres
     expose:
       - 3000
   nginx:
-    image: nginx:1.27-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: gateway
+      args:
+        FE_PACKAGE: aim_hi_fe
+        FE_DIST_DIR: dist
     container_name: nginx-gateway
     restart: unless-stopped
     depends_on:
@@ -28,8 +35,6 @@ services:
       SSL_CERT_FILE: ${SSL_CERT_FILE}
       SSL_KEY_FILE: ${SSL_KEY_FILE}
     volumes:
-      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./config/nginx/templates:/etc/nginx/templates:ro
       - ./config/nginx/certs:/etc/nginx/certs:ro
   postgres:
     image: postgres:17-alpine

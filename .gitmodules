@@ -7,3 +7,6 @@
 [submodule "packages/aim_hi_chatbot"]
 	path = packages/aim_hi_chatbot
 	url = git@github.com:gprice1129/aim_hi_chatbot.git
+[submodule "packages/aim_hi_fe"]
+	path = packages/aim_hi_fe
+	url = git@github.com:dnsmith124/aim-hi-fe.git

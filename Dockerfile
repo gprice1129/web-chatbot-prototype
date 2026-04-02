@@ -1,3 +1,6 @@
+ARG FE_PACKAGE=aim_hi_fe
+ARG FE_DIST_DIR=dist
+
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -27,3 +30,17 @@ RUN npm ci --omit=dev
 WORKDIR /app/packages/aim_hi_webserver
 EXPOSE 3000
 ENTRYPOINT ["node", "build/main.js"]
+
+FROM node:24-bookworm-slim AS fe-build
+ARG FE_PACKAGE
+ARG FE_DIST_DIR
+WORKDIR /app
+COPY packages/${FE_PACKAGE} .
+RUN npm ci
+RUN npm run build
+RUN mv ${FE_DIST_DIR} /fe-dist
+
+FROM nginx:1.27-alpine AS gateway
+COPY --from=fe-build /fe-dist /usr/share/nginx/html
+COPY config/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY config/nginx/templates /etc/nginx/templates
