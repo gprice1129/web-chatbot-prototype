@@ -2,6 +2,7 @@ services:
   app:
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      COOKIE_KEY: ${COOKIE_KEY}
       PGHOST: postgres
       PGPORT: 5432
       PGUSER: ${APP_DB_USER}
