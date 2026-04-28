@@ -7,8 +7,8 @@
 --      (state, nonce, PKCE verifier) and redirects to the IdP.
 --   2. IdP redirects back with an auth code + state -> server validates
 --      state against oidc_auth_states, exchanges code for tokens.
---   3. Server creates a sessions row, sets a session cookie with the
---      session id, and deletes the consumed oidc_auth_states row.
+--   3. Server creates an oidc_sessions row, sets a session cookie with
+--      the session id, and deletes the consumed oidc_auth_states row.
 --   4. Subsequent requests present the session cookie; the server looks
 --      up the session to get identity and tokens.
 
@@ -36,9 +36,9 @@ COMMENT ON COLUMN oidc_auth_states.return_path    IS 'Application path to redire
 COMMENT ON COLUMN oidc_auth_states.expires_at     IS 'Hard expiry; rows past this time should be purged.';
 
 -------------------------------------------------------------------------------
--- 2. Sessions
+-- 2. OIDC sessions
 -------------------------------------------------------------------------------
-CREATE TABLE sessions (
+CREATE TABLE oidc_sessions (
     id                UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
     subject           VARCHAR(255)  NOT NULL,
     user_info         JSONB         NOT NULL DEFAULT '{}'::jsonb,
@@ -49,18 +49,18 @@ CREATE TABLE sessions (
     user_agent        TEXT
 );
 
-CREATE INDEX idx_sessions_subject         ON sessions (subject);
-CREATE INDEX idx_sessions_expires_at      ON sessions (expires_at);
-CREATE INDEX idx_sessions_last_activity   ON sessions (last_activity_at);
+CREATE INDEX idx_oidc_sessions_subject         ON oidc_sessions (subject);
+CREATE INDEX idx_oidc_sessions_expires_at      ON oidc_sessions (expires_at);
+CREATE INDEX idx_oidc_sessions_last_activity   ON oidc_sessions (last_activity_at);
 
-COMMENT ON TABLE  sessions                       IS 'Authenticated user sessions. The session id is set in an HTTP-only cookie.';
-COMMENT ON COLUMN sessions.id                    IS 'Session identifier; stored in the client cookie. UUID v4 by default.';
-COMMENT ON COLUMN sessions.subject               IS 'OIDC "sub" claim — the stable user identifier from the identity provider.';
-COMMENT ON COLUMN sessions.user_info             IS 'Cached claims from the OIDC userinfo endpoint or id_token.';
-COMMENT ON COLUMN sessions.expires_at            IS 'Absolute session expiry; the session cannot be extended past this time.';
-COMMENT ON COLUMN sessions.last_activity_at      IS 'Updated on each authenticated request; used for idle-timeout eviction.';
-COMMENT ON COLUMN sessions.ip_address            IS 'Client IP at session creation; useful for audit logging.';
-COMMENT ON COLUMN sessions.user_agent            IS 'Client User-Agent at session creation.';
+COMMENT ON TABLE  oidc_sessions                       IS 'Authenticated user sessions. The session id is set in an HTTP-only cookie.';
+COMMENT ON COLUMN oidc_sessions.id                    IS 'Session identifier; stored in the client cookie. UUID v4 by default.';
+COMMENT ON COLUMN oidc_sessions.subject               IS 'OIDC "sub" claim — the stable user identifier from the identity provider.';
+COMMENT ON COLUMN oidc_sessions.user_info             IS 'Cached claims from the OIDC userinfo endpoint or id_token.';
+COMMENT ON COLUMN oidc_sessions.expires_at            IS 'Absolute session expiry; the session cannot be extended past this time.';
+COMMENT ON COLUMN oidc_sessions.last_activity_at      IS 'Updated on each authenticated request; used for idle-timeout eviction.';
+COMMENT ON COLUMN oidc_sessions.ip_address            IS 'Client IP at session creation; useful for audit logging.';
+COMMENT ON COLUMN oidc_sessions.user_agent            IS 'Client User-Agent at session creation.';
 
 -------------------------------------------------------------------------------
 -- 3. Cleanup: remove expired rows
@@ -76,17 +76,17 @@ AS $$
     RETURNING 1;
 $$;
 
-CREATE OR REPLACE FUNCTION purge_expired_sessions()
+CREATE OR REPLACE FUNCTION purge_expired_oidc_sessions()
 RETURNS INTEGER
 LANGUAGE sql
 AS $$
-    DELETE FROM sessions
+    DELETE FROM oidc_sessions
     WHERE  expires_at < now()
     RETURNING 1;
 $$;
 
-COMMENT ON FUNCTION purge_expired_oidc_states IS 'Deletes expired OIDC auth states. Returns the number of rows removed.';
-COMMENT ON FUNCTION purge_expired_sessions    IS 'Deletes expired sessions. Returns the number of rows removed.';
+COMMENT ON FUNCTION purge_expired_oidc_states   IS 'Deletes expired OIDC auth states. Returns the number of rows removed.';
+COMMENT ON FUNCTION purge_expired_oidc_sessions IS 'Deletes expired OIDC sessions. Returns the number of rows removed.';
 
 -------------------------------------------------------------------------------
 -- 4. Record this migration

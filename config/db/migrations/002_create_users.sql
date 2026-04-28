@@ -52,6 +52,10 @@ create table users (
     mfa_method                  varchar(64),
     mfa_secret                  text,
 
+    -- login tracking
+    last_login_at               timestamptz,
+    last_login_ip               inet,
+
     -- housekeeping
     created_at                  timestamptz   not null default now(),
     updated_at                  timestamptz   not null default now()

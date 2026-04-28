@@ -4,6 +4,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       UPLOAD_BASE_PATH: ${UPLOAD_BASE_PATH}
       COOKIE_KEY: ${COOKIE_KEY}
+      APP_ENV: ${APP_ENV:-production}
       PGHOST: postgres
       PGPORT: 5432
       PGUSER: ${APP_DB_USER}
@@ -14,7 +15,8 @@ services:
       dockerfile: Dockerfile
       target: runtime
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     expose:
       - 3000
   nginx:
@@ -44,6 +46,11 @@ services:
     restart: unless-stopped
     expose:
       - 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${APP_DB_NAME}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -52,7 +59,7 @@ services:
       APP_DB_NAME: ${APP_DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./config/db/bootstrap.sh:/docker-entrypoint-initdb.d/bootstrap.sh:ro
+      - ./config/db/bootstrap.sh:/docker-entrypoint-initdb.d/10_bootstrap.sh:ro
       - ./config/db/migrations:/migrations:ro
 
 volumes:

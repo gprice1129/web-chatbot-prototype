@@ -1,4 +1,4 @@
--- 003_create_app_sessions.sql
+-- 003_create_sessions.sql
 --
 -- creates the application session table for managing authenticated user
 -- sessions across both local-credential and oidc authentication methods.
@@ -19,7 +19,7 @@ begin;
 -------------------------------------------------------------------------------
 -- 1. application sessions
 -------------------------------------------------------------------------------
-create table app_sessions (
+create table sessions (
     id                uuid          primary key default gen_random_uuid(),
     user_id           uuid          not null references users (id) on delete cascade,
     session_token     varchar(255)  not null,
@@ -41,46 +41,46 @@ create table app_sessions (
 );
 
 -- token look-up on every authenticated request — must be fast
-create unique index idx_app_sessions_token       on app_sessions (session_token);
+create unique index idx_sessions_token       on sessions (session_token);
 
 -- find all active sessions for a user (e.g. "log out everywhere")
-create index idx_app_sessions_user_id            on app_sessions (user_id);
+create index idx_sessions_user_id            on sessions (user_id);
 
 -- clean-up jobs and idle-timeout queries
-create index idx_app_sessions_expires_at         on app_sessions (expires_at);
-create index idx_app_sessions_last_activity      on app_sessions (last_activity_at);
+create index idx_sessions_expires_at         on sessions (expires_at);
+create index idx_sessions_last_activity      on sessions (last_activity_at);
 
-comment on table  app_sessions is 'application-level sessions for authenticated users (local or oidc).';
+comment on table  sessions is 'application-level sessions for authenticated users (local or oidc).';
 
-comment on column app_sessions.id               is 'internal row identifier. not exposed to the client.';
-comment on column app_sessions.user_id          is 'owning user; cascades on delete so removing a user purges their sessions.';
-comment on column app_sessions.session_token    is 'opaque bearer token stored in an http-only secure cookie. rotatable independently of the row id.';
-comment on column app_sessions.auth_method      is 'how the session was created (e.g. local, oidc). used for step-up auth decisions.';
-comment on column app_sessions.expires_at       is 'absolute session expiry; cannot be extended.';
-comment on column app_sessions.last_activity_at is 'updated on each request; used for idle-timeout eviction.';
-comment on column app_sessions.revoked_at       is 'non-null means explicitly revoked (logout / admin action). preserves audit trail.';
-comment on column app_sessions.ip_address       is 'client ip at session creation.';
-comment on column app_sessions.user_agent       is 'client user-agent at session creation.';
+comment on column sessions.id               is 'internal row identifier. not exposed to the client.';
+comment on column sessions.user_id          is 'owning user; cascades on delete so removing a user purges their sessions.';
+comment on column sessions.session_token    is 'opaque bearer token stored in an http-only secure cookie. rotatable independently of the row id.';
+comment on column sessions.auth_method      is 'how the session was created (e.g. local, oidc). used for step-up auth decisions.';
+comment on column sessions.expires_at       is 'absolute session expiry; cannot be extended.';
+comment on column sessions.last_activity_at is 'updated on each request; used for idle-timeout eviction.';
+comment on column sessions.revoked_at       is 'non-null means explicitly revoked (logout / admin action). preserves audit trail.';
+comment on column sessions.ip_address       is 'client ip at session creation.';
+comment on column sessions.user_agent       is 'client user-agent at session creation.';
 
 -------------------------------------------------------------------------------
 -- 2. cleanup: remove expired and revoked sessions
 -------------------------------------------------------------------------------
-create or replace function purge_expired_app_sessions()
+create or replace function purge_expired_sessions()
 returns integer
 language sql
 as $$
-    delete from app_sessions
+    delete from sessions
     where  expires_at < now()
        or  revoked_at < now() - interval '30 days'
     returning 1;
 $$;
 
-comment on function purge_expired_app_sessions is 'deletes expired sessions and revoked sessions older than 30 days. returns the number of rows removed.';
+comment on function purge_expired_sessions is 'deletes expired sessions and revoked sessions older than 30 days. returns the number of rows removed.';
 
 -------------------------------------------------------------------------------
 -- 3. record this migration
 -------------------------------------------------------------------------------
 insert into schema_migrations (version, name)
-values (3, '003_create_app_sessions');
+values (3, '003_create_sessions');
 
 commit;
