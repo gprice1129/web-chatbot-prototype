@@ -1,0 +1,25 @@
+{
+  "name": "aim_hi_jobs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./build/jobs.js",
+  "types": "./build/jobs.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/jobs.d.ts",
+      "default": "./build/jobs.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@types/node": "^25.5.0",
+    "pg-boss": "^10.1.5",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "./src",
+    "outDir": "./build"
+  },
+  "references": [{ "path": "../aim_hi_jobs" }],
+  "include": ["src/**/*.ts"]
+}

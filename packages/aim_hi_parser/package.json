@@ -1,0 +1,21 @@
+{
+  "name": "aim_hi_parser",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@types/node": "^25.5.0",
+    "@types/pdf-parse": "^1.1.4",
+    "aim_hi_jobs": "*",
+    "mammoth": "^1.8.0",
+    "pdf-parse": "^1.1.1",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node build/main.js"
+  },
+  "imports": {
+    "#lib/*": "./build/lib/*"
+  }
+}
