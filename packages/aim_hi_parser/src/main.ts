@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import {
+  type PgBoss,
   run_PgBoss,
   make_parse_queue,
   register_parser,
@@ -10,7 +11,7 @@ import { parse_file } from "#lib/parser.js";
 async function main(): Promise<void> {
   const boss = await run_PgBoss();
   await make_parse_queue(boss);
-  await register_parser(boss, async (jobs: ParseFileJob[]) => {
+  await register_parser(boss, async (jobs: PgBoss.Job<ParseFileJob>[]) => {
     // TODO:[jobs] error handling for parse or write failure
     for (const job of jobs) {
       const { file_id, mime_type, file_path } = job.data;
