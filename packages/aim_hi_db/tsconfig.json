@@ -2,12 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
+    "declaration": true,
+    "declarationMap": true,
     "rootDir": "./src",
     "outDir": "./build"
   },
-  "references": [
-    { "path": "../aim_hi_db" },
-    { "path": "../aim_hi_jobs" }
-  ],
   "include": ["src/**/*.ts"]
 }

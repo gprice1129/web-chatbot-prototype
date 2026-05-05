@@ -1,0 +1,18 @@
+{
+  "name": "test",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "upload-file": "node build/api/upload-file.js",
+    "file-status": "node build/api/file-status.js"
+  },
+  "imports": {
+    "#lib/*": "./build/api/lib/*"
+  }
+}

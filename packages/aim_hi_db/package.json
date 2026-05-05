@@ -1,0 +1,26 @@
+{
+  "name": "aim_hi_db",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./build/db.js",
+  "types": "./build/db.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/db.d.ts",
+      "default": "./build/db.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@types/node": "^25.5.0",
+    "@types/pg": "^8.20.0",
+    "pg": "^8.20.0",
+    "typescript": "^5.9.3"
+  }
+}

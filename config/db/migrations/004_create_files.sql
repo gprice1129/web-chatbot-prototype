@@ -2,7 +2,7 @@
 --
 -- creates the files table for tracking uploaded blobs and their metadata.
 --
--- upload flow (see packages/aim_hi_webserver/src/route/upload-file.ts):
+-- upload flow (see packages/aim_hi_webserver/src/route/file-upload.ts):
 --   1. client posts a multipart upload -> server generates a uuid `file_id`
 --      and streams the body to the configured storage backend at a key
 --      derived from `uuid_to_path(file_id)`.
@@ -71,8 +71,14 @@ create index idx_files_user_id_created_at on files (user_id, created_at desc);
 -- worker queries: find files in a particular state (e.g. retry stuck 'queued')
 create index idx_files_status on files (status);
 
--- dedup / integrity look-ups by content hash
+-- integrity / orphan look-ups by content hash (across users)
 create index idx_files_checksum on files (checksum_sha256) where checksum_sha256 is not null;
+
+-- per-user dedup: re-uploading the same content returns the existing row
+-- instead of inserting a second one. partial because checksum is nullable.
+create unique index idx_files_user_checksum
+    on files (user_id, checksum_sha256)
+    where checksum_sha256 is not null;
 
 -- locate a blob by its physical address (e.g. orphan-blob sweepers)
 create unique index idx_files_storage_location on files (storage_backend, storage_key);

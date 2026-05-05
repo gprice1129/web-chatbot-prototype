@@ -1,3 +1,6 @@
 .env*
 config/nginx/certs
 node_modules
+build/
+*.tsbuildinfo
+packages/test/data/
