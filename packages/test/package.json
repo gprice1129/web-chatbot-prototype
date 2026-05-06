@@ -9,10 +9,8 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "upload-file": "node build/api/upload-file.js",
-    "file-status": "node build/api/file-status.js"
-  },
-  "imports": {
-    "#lib/*": "./build/api/lib/*"
+    "file-upload": "node build/file-upload/file-upload.js",
+    "file-status": "node build/file-status/file-status.js",
+    "file-download": "node build/file-download/file-download.js"
   }
 }

@@ -1,0 +1,30 @@
+# file-status
+
+End-to-end exercise of `GET /api/files/status/:file_id`. Logs in as `testuser`, fetches the parse status for a single file, and prints the `{ id, status }` response.
+
+`status` is one of `uploaded`, `queued`, `parsed`, or `parse_failed`.
+
+## Prerequisites
+
+- Webserver running and reachable (default `https://localhost`).
+- Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
+- A file id owned by `testuser` — typically obtained from a prior `npm run file-upload` run.
+- Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
+
+## Run
+
+From `packages/test/`:
+
+```sh
+npm run build
+npm run file-status -- <file-id> [base-url]
+```
+
+`base-url` defaults to `https://localhost`.
+
+## Env overrides
+
+| Var        | Default      | Notes                                                            |
+| ---------- | ------------ | ---------------------------------------------------------------- |
+| `USERNAME` | `testuser`   | Seeded automatically when the server runs with `APP_ENV=test`.   |
+| `PASSWORD` | `irrelevant` | The test auth service ignores the password for the seeded user. |

@@ -5,7 +5,6 @@
     { "path": "./packages/aim_hi_db" },
     { "path": "./packages/aim_hi_jobs" },
     { "path": "./packages/aim_hi_webserver" },
-    { "path": "./packages/aim_hi_parser" },
-    { "path": "./packages/test" }
+    { "path": "./packages/aim_hi_parser" }
   ]
 }
