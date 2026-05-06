@@ -12,6 +12,7 @@
     "file-upload": "node build/file-upload/file-upload.js",
     "file-status": "node build/file-status/file-status.js",
     "file-download": "node build/file-download/file-download.js",
-    "applications": "node build/applications/applications.js"
+    "applications": "node build/applications/applications.js",
+    "chats": "node build/chats/chats.js"
   }
 }

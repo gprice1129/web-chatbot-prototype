@@ -1,5 +1,6 @@
 export {
   Application,
+  Chat,
   File,
   FileStatus,
   Session,
@@ -38,6 +39,16 @@ interface Application {
   id: string;
   name: string;
   description: string | null;
+}
+
+interface Chat {
+  id: string;
+  user_id: string;
+  application_id: string;
+  title: string | null;
+  metadata: Record<string, unknown>;
+  created_at: Date;
+  updated_at: Date;
 }
 
 interface File {
@@ -170,6 +181,22 @@ class DatabaseService {
     const result = await this._pool.query(
       "SELECT id, name, description FROM applications WHERE enabled ORDER BY created_at");
     return result.rows;
+  }
+
+  async create_chat(
+    user_id: string,
+    application_id: string,
+  ): Promise<Chat | null> {
+    // Insert only if the application exists AND is enabled. Returning zero
+    // rows means the caller passed an unknown or disabled application_id.
+    const result = await this._pool.query(
+      `INSERT INTO chats (user_id, application_id)
+       SELECT $1, $2
+       WHERE EXISTS (SELECT 1 FROM applications WHERE id = $2 AND enabled)
+       RETURNING *`,
+      [user_id, application_id]);
+    if (result.rows.length === 0) return null;
+    return result.rows[0];
   }
 
   async close(): Promise<void> {
