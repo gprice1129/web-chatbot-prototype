@@ -19,6 +19,17 @@ services:
         condition: service_healthy
     expose:
       - 3000
+    healthcheck:
+      # Goes green only after make_file_parse_service() has finished its
+      # pg-boss bootstrap (run_PgBoss + createQueue) -- those run before
+      # app.listen() in main.ts, so a 200 from /health implies they're done.
+      # The parser depends on this so its own pg-boss start does not race
+      # the webserver's DDL.
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
     volumes:
       - uploads:${UPLOAD_BASE_PATH}
   parser:
@@ -35,6 +46,8 @@ services:
       target: parser
     depends_on:
       postgres:
+        condition: service_healthy
+      app:
         condition: service_healthy
     volumes:
       - uploads:${UPLOAD_BASE_PATH}
@@ -79,7 +92,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./config/db/bootstrap.sh:/docker-entrypoint-initdb.d/10_bootstrap.sh:ro
+      - ./config/db/seed.sh:/docker-entrypoint-initdb.d/20_seed.sh:ro
       - ./config/db/migrations:/migrations:ro
+      - ./config/db/seed:/seed:ro
 
 volumes:
   postgres_data:

@@ -1,4 +1,5 @@
 export {
+  Application,
   File,
   FileStatus,
   Session,
@@ -31,6 +32,12 @@ interface Session {
 interface User {
   id: string;
   password_hash: string;
+}
+
+interface Application {
+  id: string;
+  name: string;
+  description: string | null;
 }
 
 interface File {
@@ -157,6 +164,12 @@ class DatabaseService {
     await this._pool.query(
       "UPDATE files SET status = $2, parse_error = $3 WHERE id = $1",
       [id, status, parse_error]);
+  }
+
+  async list_enabled_applications(): Promise<Application[]> {
+    const result = await this._pool.query(
+      "SELECT id, name, description FROM applications WHERE enabled ORDER BY created_at");
+    return result.rows;
   }
 
   async close(): Promise<void> {

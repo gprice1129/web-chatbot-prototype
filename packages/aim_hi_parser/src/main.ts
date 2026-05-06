@@ -3,7 +3,6 @@ import DatabaseService, { FileStatus } from "aim_hi_db";
 import {
   type PgBoss,
   run_PgBoss,
-  make_parse_queue,
   register_parser,
   ParseFileJob,
 } from "aim_hi_jobs";
@@ -12,7 +11,6 @@ import { parse_file } from "#lib/parser.js";
 async function main(): Promise<void> {
   const db = new DatabaseService();
   const boss = await run_PgBoss();
-  await make_parse_queue(boss);
   await register_parser(boss, async (jobs: PgBoss.Job<ParseFileJob>[]) => {
     for (const job of jobs) {
       const { file_id, mime_type, file_path } = job.data;

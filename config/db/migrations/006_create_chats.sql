@@ -1,4 +1,4 @@
--- 005_create_chats.sql
+-- 006_create_chats.sql
 --
 -- creates tables for llm-based chats and the messages within them, plus
 -- junction tables that attach uploaded files to chats and to individual
@@ -21,9 +21,10 @@
 --     multiple files.
 --
 -- key design choices:
---   * application_id is a uuid but not (yet) a foreign key; there is no
---     applications table in the schema. the value is expected to be a
---     stable identifier supplied by the embedding application.
+--   * application_id references applications(id) (migration 005) with
+--     `on delete restrict` -- system applications are rarely deleted,
+--     and when they are we do not want to silently destroy chat
+--     history. disable the app (applications.enabled = false) instead.
 --   * role is a varchar with a check constraint, matching the style used
 --     elsewhere in the schema (sessions.auth_method, files.status). the
 --     allowed set follows the openai/anthropic chat-completions taxonomy.
@@ -41,7 +42,7 @@ begin;
 create table chats (
     id              uuid          primary key default gen_random_uuid(),
     user_id         uuid          not null references users (id) on delete cascade,
-    application_id  uuid          not null,
+    application_id  uuid          not null references applications (id) on delete restrict,
 
     title           text,
 
@@ -62,7 +63,7 @@ comment on table  chats is 'high-level llm chat conversations, scoped per (user_
 
 comment on column chats.id             is 'random uuid identifying the chat.';
 comment on column chats.user_id        is 'owning user; cascades on delete so removing a user purges their chats.';
-comment on column chats.application_id is 'uuid of the application/feature embedding the chat. supplied by the caller; not (yet) a foreign key.';
+comment on column chats.application_id is 'application that scopes the chat. references applications(id); delete is restricted so retiring an app does not destroy chat history.';
 comment on column chats.title          is 'human-readable title (e.g. derived from the first user message). optional.';
 comment on column chats.metadata       is 'free-form per-chat metadata. shape is enforced by the application.';
 
@@ -164,6 +165,6 @@ comment on function set_chats_updated_at is 'keeps chats.updated_at current on e
 -- 6. record this migration
 -------------------------------------------------------------------------------
 insert into schema_migrations (version, name)
-values (5, '005_create_chats');
+values (6, '006_create_chats');
 
 commit;
