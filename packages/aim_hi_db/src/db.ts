@@ -44,7 +44,6 @@ interface Application {
 interface Chat {
   id: string;
   user_id: string;
-  application_id: string;
   title: string | null;
   metadata: Record<string, unknown>;
   created_at: Date;
@@ -209,19 +208,10 @@ class DatabaseService {
     return result.rows[0];
   }
 
-  async create_chat(
-    user_id: string,
-    application_id: string,
-  ): Promise<Chat | null> {
-    // Insert only if the application exists AND is enabled. Returning zero
-    // rows means the caller passed an unknown or disabled application_id.
+  async create_chat(user_id: string): Promise<Chat> {
     const result = await this._pool.query(
-      `INSERT INTO chats (user_id, application_id)
-       SELECT $1, $2
-       WHERE EXISTS (SELECT 1 FROM applications WHERE id = $2 AND enabled)
-       RETURNING *`,
-      [user_id, application_id]);
-    if (result.rows.length === 0) return null;
+      `INSERT INTO chats (user_id) VALUES ($1) RETURNING *`,
+      [user_id]);
     return result.rows[0];
   }
 

@@ -5,9 +5,8 @@
 -- messages.
 --
 -- model:
---   * a chat is a single conversation owned by a user and scoped to an
---     application (e.g. a product surface or feature embedding the chat).
---     listing chats is always per (user_id, application_id).
+--   * a chat is a single conversation owned by a user. listing chats is
+--     always per user_id.
 --   * a chat has many chat_messages, ordered by created_at. messages are
 --     append-only -- no updated_at.
 --   * files (from migration 004) can be attached at two levels:
@@ -21,13 +20,8 @@
 --     multiple files.
 --
 -- key design choices:
---   * application_id references applications(id) (migration 005) with
---     `on delete restrict` -- system applications are rarely deleted,
---     and when they are we do not want to silently destroy chat
---     history. disable the app (applications.enabled = false) instead.
 --   * role is a varchar with a check constraint, matching the style used
---     elsewhere in the schema (sessions.auth_method, files.status). the
---     allowed set follows the openai/anthropic chat-completions taxonomy.
+--     elsewhere in the schema (sessions.auth_method, files.status).
 --   * metadata jsonb columns mirror files.metadata for free-form per-row
 --     data (model id, token counts, tool-call payloads, ui state, ...).
 --   * cascading deletes flow user -> chats -> chat_messages -> junctions,
@@ -42,7 +36,6 @@ begin;
 create table chats (
     id              uuid          primary key default gen_random_uuid(),
     user_id         uuid          not null references users (id) on delete cascade,
-    application_id  uuid          not null references applications (id) on delete restrict,
 
     title           text,
 
@@ -52,18 +45,17 @@ create table chats (
     updated_at      timestamptz   not null default now()
 );
 
--- list / paginate a user's chats within an application, newest first
-create index idx_chats_user_app_created_at
-    on chats (user_id, application_id, created_at desc);
+-- list / paginate a user's chats, newest first
+create index idx_chats_user_created_at
+    on chats (user_id, created_at desc);
 
 -- key/value queries inside the jsonb payload
 create index idx_chats_metadata on chats using gin (metadata jsonb_path_ops);
 
-comment on table  chats is 'high-level llm chat conversations, scoped per (user_id, application_id).';
+comment on table  chats is 'high-level llm chat conversations, scoped per user_id.';
 
 comment on column chats.id             is 'random uuid identifying the chat.';
 comment on column chats.user_id        is 'owning user; cascades on delete so removing a user purges their chats.';
-comment on column chats.application_id is 'application that scopes the chat. references applications(id); delete is restricted so retiring an app does not destroy chat history.';
 comment on column chats.title          is 'human-readable title (e.g. derived from the first user message). optional.';
 comment on column chats.metadata       is 'free-form per-chat metadata. shape is enforced by the application.';
 

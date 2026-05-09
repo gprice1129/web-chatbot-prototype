@@ -1,16 +1,13 @@
 // Standalone example/test for POST /api/chats.
 //
 // Reading this file shows the full create-chat protocol (authenticate, then
-// POST with the application id in the JSON body). Running it against a
-// live server asserts that the route works end-to-end:
+// POST). Running it against a live server asserts that the route works
+// end-to-end:
 //
-//   npm run chats -- <application-id> [base-url]
+//   npm run chats -- [base-url]
 //
 // The server must be running with APP_ENV=test, which seeds `testuser` and
-// configures the testing auth service to ignore the password. The
-// applications table must contain a row matching <application-id> with
-// enabled = true (see config/db/seed/ for the seeded entries; the id can
-// also be fetched via `npm run applications`).
+// configures the testing auth service to ignore the password.
 
 // Match `curl -k` for the local self-signed cert. Set before any fetch so
 // undici picks it up when the global dispatcher is created.
@@ -18,7 +15,6 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 interface ChatCreateOptions {
   base_url: string;
-  application_id: string;
   username: string;
   password: string;
 }
@@ -48,17 +44,11 @@ export async function chat_create(
     .find((c) => c.startsWith("session="));
   if (!session_cookie) throw new Error("Login response had no session cookie");
 
-  // 2. Create the chat. application_id goes in the JSON body. The route
-  //    returns { id } where id is the new chat's uuid. A 400 with
-  //    "application_id is unknown or disabled" indicates the application
-  //    row is missing or has enabled = false.
+  // 2. Create the chat. The route returns { id } where id is the new
+  //    chat's uuid.
   const create_res = await fetch(`${opts.base_url}/api/chats`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Cookie: session_cookie,
-    },
-    body: JSON.stringify({ application_id: opts.application_id }),
+    headers: { Cookie: session_cookie },
   });
   const body = await create_res.text();
   if (create_res.status !== 200) {
@@ -72,14 +62,8 @@ export async function chat_create(
 // live server and print the response. Throws on any failure, which surfaces
 // as a non-zero exit code.
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const application_id = process.argv[2];
-  if (!application_id) {
-    console.error("Usage: chats <application-id> [base-url]");
-    process.exit(2);
-  }
   const result = await chat_create({
-    base_url: process.argv[3] ?? "https://localhost",
-    application_id,
+    base_url: process.argv[2] ?? "https://localhost",
     username: process.env.USERNAME ?? "testuser",
     password: process.env.PASSWORD ?? "irrelevant",
   });
