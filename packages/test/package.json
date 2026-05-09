@@ -15,6 +15,7 @@
     "file-round-trip": "node build/file-round-trip/file-round-trip.js",
     "applications": "node build/applications/applications.js",
     "chat-create": "node build/chat-create/chat-create.js",
+    "chat-get": "node build/chat-get/chat-get.js",
     "chat-update": "node build/chat-update/chat-update.js"
   }
 }
