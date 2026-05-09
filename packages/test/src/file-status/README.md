@@ -1,6 +1,6 @@
 # file-status
 
-End-to-end exercise of `GET /api/files/status/:file_id`. Logs in as `testuser`, fetches the parse status for a single file, and prints the `{ id, status }` response.
+End-to-end exercise of `GET /api/chats/:chat_id/files/status/:file_id`. Logs in as `testuser`, fetches the parse status for a single file under a chat the user owns, and prints the `{ id, status }` response.
 
 `status` is one of `uploaded`, `queued`, `parsed`, or `parse_failed`.
 
@@ -8,6 +8,7 @@ End-to-end exercise of `GET /api/files/status/:file_id`. Logs in as `testuser`, 
 
 - Webserver running and reachable (default `https://localhost`).
 - Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
+- A chat id owned by `testuser` — typically obtained from a prior `npm run chats` run.
 - A file id owned by `testuser` — typically obtained from a prior `npm run file-upload` run.
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 
@@ -17,7 +18,7 @@ From `packages/test/`:
 
 ```sh
 npm run build
-npm run file-status -- <file-id> [base-url]
+npm run file-status -- <chat-id> <file-id> [base-url]
 ```
 
 `base-url` defaults to `https://localhost`.

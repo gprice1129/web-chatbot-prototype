@@ -1,13 +1,14 @@
-// Standalone example/test for GET /api/files/status/:file_id.
+// Standalone example/test for GET /api/chats/:chat_id/files/status/:file_id.
 //
 // Reading this file shows the full status protocol (authenticate, then GET
-// the file id). Running it against a live server asserts that the route works
-// end-to-end:
+// the file id under a chat the user owns). Running it against a live server
+// asserts that the route works end-to-end:
 //
-//   npm run file-status -- <file-id> [base-url]
+//   npm run file-status -- <chat-id> <file-id> [base-url]
 //
 // The server must be running with APP_ENV=test, which seeds `testuser` and
-// configures the testing auth service to ignore the password.
+// configures the testing auth service to ignore the password. <chat-id> must
+// be a chat owned by `testuser` — typically obtained from `npm run chats`.
 
 // Match `curl -k` for the local self-signed cert. Set before any fetch so
 // undici picks it up when the global dispatcher is created.
@@ -15,6 +16,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 interface FileStatusOptions {
   base_url: string;
+  chat_id: string;
   file_id: string;
   username: string;
   password: string;
@@ -47,11 +49,12 @@ export async function file_status(
   if (!session_cookie) throw new Error("Login response had no session cookie");
 
   // 2. Fetch status. The route returns { id, status } where status is one of
-  //    `uploaded`, `queued`, `parsed`, or `parse_failed`. A file_id the user
-  //    does not own returns 404 (same as a missing file) to avoid leaking
-  //    existence across users.
+  //    `uploaded`, `queued`, `parsed`, or `parse_failed`. A chat_id the user
+  //    does not own — or a file_id the user does not own — returns 404 to
+  //    avoid leaking existence across users.
   const status_res = await fetch(
-    `${opts.base_url}/api/files/status/${encodeURIComponent(opts.file_id)}`,
+    `${opts.base_url}/api/chats/${encodeURIComponent(opts.chat_id)}`
+      + `/files/status/${encodeURIComponent(opts.file_id)}`,
     { method: "GET", headers: { Cookie: session_cookie } });
   const body = await status_res.text();
   if (status_res.status !== 200) {
@@ -65,13 +68,15 @@ export async function file_status(
 // against a live server and print the response. Throws on any failure, which
 // surfaces as a non-zero exit code.
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const file_id = process.argv[2];
-  if (!file_id) {
-    console.error("Usage: file-status <file-id> [base-url]");
+  const chat_id = process.argv[2];
+  const file_id = process.argv[3];
+  if (!chat_id || !file_id) {
+    console.error("Usage: file-status <chat-id> <file-id> [base-url]");
     process.exit(2);
   }
   const result = await file_status({
-    base_url: process.argv[3] ?? "https://localhost",
+    base_url: process.argv[4] ?? "https://localhost",
+    chat_id,
     file_id,
     username: process.env.USERNAME ?? "testuser",
     password: process.env.PASSWORD ?? "irrelevant",

@@ -1,13 +1,14 @@
-// Standalone example/test for GET /api/files/download/:file_id.
+// Standalone example/test for GET /api/chats/:chat_id/files/download/:file_id.
 //
 // Reading this file shows the full download protocol (authenticate, then GET
-// the file id and stream the bytes to disk). Running it against a live server
-// asserts that the route works end-to-end:
+// the file id under a chat the user owns and stream the bytes to disk).
+// Running it against a live server asserts that the route works end-to-end:
 //
-//   npm run file-download -- <file-id> [base-url]
+//   npm run file-download -- <chat-id> <file-id> [base-url]
 //
 // The server must be running with APP_ENV=test, which seeds `testuser` and
-// configures the testing auth service to ignore the password.
+// configures the testing auth service to ignore the password. <chat-id> must
+// be a chat owned by `testuser` — typically obtained from `npm run chats`.
 
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -18,6 +19,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 interface DownloadOptions {
   base_url: string;
+  chat_id: string;
   file_id: string;
   username: string;
   password: string;
@@ -56,10 +58,11 @@ export async function file_download(
 
   // 2. Download. The route streams the original bytes back with the original
   //    mime type and a content-disposition that carries the original
-  //    filename. A file_id the user does not own returns 404 (same as a
-  //    missing file) to avoid leaking existence across users.
+  //    filename. A chat_id the user does not own — or a file_id the user
+  //    does not own — returns 404 to avoid leaking existence across users.
   const dl_res = await fetch(
-    `${opts.base_url}/api/files/download/${encodeURIComponent(opts.file_id)}`,
+    `${opts.base_url}/api/chats/${encodeURIComponent(opts.chat_id)}`
+      + `/files/download/${encodeURIComponent(opts.file_id)}`,
     { method: "GET", headers: { Cookie: session_cookie } });
   if (dl_res.status !== 200) {
     throw new Error(
@@ -119,13 +122,15 @@ function resolve_output_path(
 // against a live server and print the response. Throws on any failure, which
 // surfaces as a non-zero exit code.
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const file_id = process.argv[2];
-  if (!file_id) {
-    console.error("Usage: file-download <file-id> [base-url]");
+  const chat_id = process.argv[2];
+  const file_id = process.argv[3];
+  if (!chat_id || !file_id) {
+    console.error("Usage: file-download <chat-id> <file-id> [base-url]");
     process.exit(2);
   }
   const result = await file_download({
-    base_url: process.argv[3] ?? "https://localhost",
+    base_url: process.argv[4] ?? "https://localhost",
+    chat_id,
     file_id,
     username: process.env.USERNAME ?? "testuser",
     password: process.env.PASSWORD ?? "irrelevant",
