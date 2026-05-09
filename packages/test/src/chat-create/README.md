@@ -1,12 +1,11 @@
-# file-upload
+# chat-create
 
-End-to-end exercise of `POST /api/chats/:chat_id/files/upload`. Logs in as `testuser`, posts a multipart `file` part scoped to a chat the user owns, and prints the `{ id, status }` response.
+End-to-end exercise of `POST /api/chats`. Logs in as `testuser`, creates a new chat with the given title, and prints the `{ id, title }` response.
 
 ## Prerequisites
 
 - Webserver running and reachable (default `https://localhost`).
 - Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
-- A chat id owned by `testuser` — typically obtained from a prior `npm run chat-create` run.
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 
 ## Run
@@ -15,7 +14,7 @@ From `packages/test/`:
 
 ```sh
 npm run build
-npm run file-upload -- <chat-id> <path-to-file> [base-url]
+npm run chat-create -- <title> [base-url]
 ```
 
 `base-url` defaults to `https://localhost`.

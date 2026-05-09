@@ -10,7 +10,7 @@ A `parse_failed` terminal status throws (no point downloading a failed parse). A
 
 - Webserver running and reachable (default `https://localhost`).
 - Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
-- A chat id owned by `testuser` — typically obtained from a prior `npm run chats` run.
+- A chat id owned by `testuser` — typically obtained from a prior `npm run chat-create` run.
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 
 ## Run

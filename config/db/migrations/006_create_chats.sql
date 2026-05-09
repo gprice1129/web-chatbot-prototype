@@ -37,7 +37,7 @@ create table chats (
     id              uuid          primary key default gen_random_uuid(),
     user_id         uuid          not null references users (id) on delete cascade,
 
-    title           text,
+    title           text          not null,
 
     metadata        jsonb         not null default '{}'::jsonb,
 
@@ -56,7 +56,7 @@ comment on table  chats is 'high-level llm chat conversations, scoped per user_i
 
 comment on column chats.id             is 'random uuid identifying the chat.';
 comment on column chats.user_id        is 'owning user; cascades on delete so removing a user purges their chats.';
-comment on column chats.title          is 'human-readable title (e.g. derived from the first user message). optional.';
+comment on column chats.title          is 'human-readable title (e.g. derived from the first user message).';
 comment on column chats.metadata       is 'free-form per-chat metadata. shape is enforced by the application.';
 
 -------------------------------------------------------------------------------

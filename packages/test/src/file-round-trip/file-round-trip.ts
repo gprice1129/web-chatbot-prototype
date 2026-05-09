@@ -13,7 +13,7 @@
 // The server must be running with APP_ENV=test, which seeds `testuser` and
 // configures the testing auth service to ignore the password. <chat-id>
 // must be a chat owned by `testuser` — typically obtained from
-// `npm run chats`.
+// `npm run chat-create`.
 
 import * as fs from "node:fs";
 import * as path from "node:path";

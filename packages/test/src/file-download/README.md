@@ -8,7 +8,7 @@ The server-supplied filename is parsed from `content-disposition` (preferring th
 
 - Webserver running and reachable (default `https://localhost`).
 - Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
-- A chat id owned by `testuser` — typically obtained from a prior `npm run chats` run.
+- A chat id owned by `testuser` — typically obtained from a prior `npm run chat-create` run.
 - A file id owned by `testuser` whose status is `parsed` (or at least whose bytes are still on disk) — typically obtained from a prior `npm run file-upload` run.
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 

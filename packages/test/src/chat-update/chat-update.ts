@@ -1,10 +1,10 @@
-// Standalone example/test for GET /api/chats/:chat_id/files/status/:file_id.
+// Standalone example/test for PATCH /api/chats/:chat_id.
 //
-// Reading this file shows the full status protocol (authenticate, then GET
-// the file id under a chat the user owns). Running it against a live server
-// asserts that the route works end-to-end:
+// Reading this file shows the full update protocol (authenticate, then PATCH
+// the chat with a new title). Running it against a live server asserts that
+// the route works end-to-end:
 //
-//   npm run file-status -- <chat-id> <file-id> [base-url]
+//   npm run chat-update -- <chat-id> <title> [base-url]
 //
 // The server must be running with APP_ENV=test, which seeds `testuser` and
 // configures the testing auth service to ignore the password. <chat-id> must
@@ -14,23 +14,23 @@
 // undici picks it up when the global dispatcher is created.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
-interface FileStatusOptions {
+interface ChatUpdateOptions {
   base_url: string;
   chat_id: string;
-  file_id: string;
+  title: string;
   username: string;
   password: string;
 }
 
-interface FileStatusResult {
+interface ChatUpdateResult {
   id: string;
-  status: string;
+  title: string;
 }
 
-export async function file_status(
-    opts: FileStatusOptions): Promise<FileStatusResult> {
+export async function chat_update(
+    opts: ChatUpdateOptions): Promise<ChatUpdateResult> {
   // 1. Login. The response sets a signed `session` cookie that gated routes
-  //    (including /files/status) require on subsequent requests.
+  //    (including /chats/:chat_id) require on subsequent requests.
   const login_res = await fetch(`${opts.base_url}/api/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -48,36 +48,42 @@ export async function file_status(
     .find((c) => c.startsWith("session="));
   if (!session_cookie) throw new Error("Login response had no session cookie");
 
-  // 2. Fetch status. The route returns { id, status } where status is one of
-  //    `uploaded`, `queued`, `parsed`, or `parse_failed`. A chat_id the user
-  //    does not own — or a file_id the user does not own — returns 404 to
-  //    avoid leaking existence across users.
-  const status_res = await fetch(
-    `${opts.base_url}/api/chats/${encodeURIComponent(opts.chat_id)}`
-      + `/files/status/${encodeURIComponent(opts.file_id)}`,
-    { method: "GET", headers: { Cookie: session_cookie } });
-  const body = await status_res.text();
-  if (status_res.status !== 200) {
+  // 2. Update the chat. The chat_id in the path is validated by the
+  //    chat-validate hook — a chat the user does not own returns 404 before
+  //    the handler runs. The body is JSON `{ title }`; the response echoes
+  //    back the persisted `{ id, title }`.
+  const update_res = await fetch(
+    `${opts.base_url}/api/chats/${encodeURIComponent(opts.chat_id)}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: session_cookie,
+      },
+      body: JSON.stringify({ title: opts.title }),
+    });
+  const body = await update_res.text();
+  if (update_res.status !== 200) {
     throw new Error(
-      `Status fetch failed (HTTP ${status_res.status}): ${body}`);
+      `Chat update failed (HTTP ${update_res.status}): ${body}`);
   }
-  return JSON.parse(body) as FileStatusResult;
+  return JSON.parse(body) as ChatUpdateResult;
 }
 
-// CLI driver — when run via `npm run file-status`, exercise the function
+// CLI driver — when run via `npm run chat-update`, exercise the function
 // against a live server and print the response. Throws on any failure, which
 // surfaces as a non-zero exit code.
 if (import.meta.url === `file://${process.argv[1]}`) {
   const chat_id = process.argv[2];
-  const file_id = process.argv[3];
-  if (!chat_id || !file_id) {
-    console.error("Usage: file-status <chat-id> <file-id> [base-url]");
+  const title = process.argv[3];
+  if (!chat_id || !title) {
+    console.error("Usage: chat-update <chat-id> <title> [base-url]");
     process.exit(2);
   }
-  const result = await file_status({
+  const result = await chat_update({
     base_url: process.argv[4] ?? "https://localhost",
     chat_id,
-    file_id,
+    title,
     username: process.env.USERNAME ?? "testuser",
     password: process.env.PASSWORD ?? "irrelevant",
   });

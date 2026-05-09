@@ -1,11 +1,12 @@
-# chats
+# chat-update
 
-End-to-end exercise of `POST /api/chats`. Logs in as `testuser`, creates a new chat, and prints the `{ id }` response.
+End-to-end exercise of `PATCH /api/chats/:chat_id`. Logs in as `testuser`, updates the chat's title, and prints the `{ id, title }` response.
 
 ## Prerequisites
 
 - Webserver running and reachable (default `https://localhost`).
 - Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
+- A chat id owned by `testuser` — typically obtained from a prior `npm run chat-create` run.
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 
 ## Run
@@ -14,7 +15,7 @@ From `packages/test/`:
 
 ```sh
 npm run build
-npm run chats -- [base-url]
+npm run chat-update -- <chat-id> <title> [base-url]
 ```
 
 `base-url` defaults to `https://localhost`.

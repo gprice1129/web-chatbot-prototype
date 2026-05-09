@@ -1,10 +1,10 @@
 // Standalone example/test for POST /api/chats.
 //
 // Reading this file shows the full create-chat protocol (authenticate, then
-// POST). Running it against a live server asserts that the route works
-// end-to-end:
+// POST a JSON body with `title`). Running it against a live server asserts
+// that the route works end-to-end:
 //
-//   npm run chats -- [base-url]
+//   npm run chat-create -- <title> [base-url]
 //
 // The server must be running with APP_ENV=test, which seeds `testuser` and
 // configures the testing auth service to ignore the password.
@@ -15,12 +15,14 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 interface ChatCreateOptions {
   base_url: string;
+  title: string;
   username: string;
   password: string;
 }
 
 interface ChatCreateResult {
   id: string;
+  title: string;
 }
 
 export async function chat_create(
@@ -44,11 +46,15 @@ export async function chat_create(
     .find((c) => c.startsWith("session="));
   if (!session_cookie) throw new Error("Login response had no session cookie");
 
-  // 2. Create the chat. The route returns { id } where id is the new
-  //    chat's uuid.
+  // 2. Create the chat. The route requires a JSON body `{ title }` and
+  //    returns `{ id, title }` for the newly created chat.
   const create_res = await fetch(`${opts.base_url}/api/chats`, {
     method: "POST",
-    headers: { Cookie: session_cookie },
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: session_cookie,
+    },
+    body: JSON.stringify({ title: opts.title }),
   });
   const body = await create_res.text();
   if (create_res.status !== 200) {
@@ -58,12 +64,18 @@ export async function chat_create(
   return JSON.parse(body) as ChatCreateResult;
 }
 
-// CLI driver — when run via `npm run chats`, exercise the function against a
+// CLI driver — when run via `npm run chat-create`, exercise the function against a
 // live server and print the response. Throws on any failure, which surfaces
 // as a non-zero exit code.
 if (import.meta.url === `file://${process.argv[1]}`) {
+  const title = process.argv[2];
+  if (!title) {
+    console.error("Usage: chat-create <title> [base-url]");
+    process.exit(2);
+  }
   const result = await chat_create({
-    base_url: process.argv[2] ?? "https://localhost",
+    base_url: process.argv[3] ?? "https://localhost",
+    title,
     username: process.env.USERNAME ?? "testuser",
     password: process.env.PASSWORD ?? "irrelevant",
   });

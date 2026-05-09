@@ -44,7 +44,7 @@ interface Application {
 interface Chat {
   id: string;
   user_id: string;
-  title: string | null;
+  title: string;
   metadata: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
@@ -208,10 +208,23 @@ class DatabaseService {
     return result.rows[0];
   }
 
-  async create_chat(user_id: string): Promise<Chat> {
+  async create_chat(user_id: string, title: string): Promise<Chat> {
     const result = await this._pool.query(
-      `INSERT INTO chats (user_id) VALUES ($1) RETURNING *`,
-      [user_id]);
+      `INSERT INTO chats (user_id, title) VALUES ($1, $2) RETURNING *`,
+      [user_id, title]);
+    return result.rows[0];
+  }
+
+  async update_chat_title(
+    id: string, user_id: string, title: string
+  ): Promise<Chat | null> {
+    const result = await this._pool.query(
+      `UPDATE chats SET title = $3
+        WHERE id = $1 AND user_id = $2
+        RETURNING *`,
+      [id, user_id, title]);
+    assert(result.rows.length <= 1);
+    if (result.rows.length === 0) return null;
     return result.rows[0];
   }
 
