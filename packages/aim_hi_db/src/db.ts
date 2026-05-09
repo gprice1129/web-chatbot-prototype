@@ -208,6 +208,13 @@ class DatabaseService {
     return result.rows[0];
   }
 
+  async get_chats_by_user(user_id: string): Promise<Chat[]> {
+    const result = await this._pool.query(
+      "SELECT * FROM chats WHERE user_id = $1 ORDER BY created_at DESC",
+      [user_id]);
+    return result.rows;
+  }
+
   async create_chat(user_id: string, title: string): Promise<Chat> {
     const result = await this._pool.query(
       `INSERT INTO chats (user_id, title) VALUES ($1, $2) RETURNING *`,
