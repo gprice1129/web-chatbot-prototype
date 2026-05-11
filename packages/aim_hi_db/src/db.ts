@@ -1,6 +1,8 @@
 export {
   Application,
   Chat,
+  ChatMessage,
+  ChatMessageRole,
   File,
   FileStatus,
   Session,
@@ -15,6 +17,13 @@ enum FileStatus {
   QUEUED = "queued",
   PARSED = "parsed",
   PARSE_FAILED = "parse_failed",
+}
+
+enum ChatMessageRole {
+  USER = "user",
+  ASSISTANT = "assistant",
+  SYSTEM = "system",
+  TOOL = "tool",
 }
 
 interface Session {
@@ -49,6 +58,15 @@ interface Chat {
   metadata: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
+}
+
+interface ChatMessage {
+  id: string;
+  chat_id: string;
+  role: ChatMessageRole;
+  content: string;
+  metadata: Record<string, unknown>;
+  created_at: Date;
 }
 
 interface File {
@@ -138,14 +156,16 @@ class DatabaseService {
     storage_backend: string,
     storage_key: string,
     status: FileStatus,
+    metadata: Record<string, unknown> = {},
   ): Promise<{ file: File; created: boolean }> {
     // Single CTE so the file insert, the dedup fallback, and the chat_files
     // attachment all land atomically.
     const result = await this._pool.query(
       `WITH ins AS (
          INSERT INTO files (id, user_id, original_filename, mime_type, size_bytes,
-                            checksum_sha256, storage_backend, storage_key, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                            checksum_sha256, storage_backend, storage_key, status,
+                            metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $11)
          ON CONFLICT (user_id, checksum_sha256) WHERE checksum_sha256 IS NOT NULL
            DO NOTHING
          RETURNING *, true AS created
@@ -165,7 +185,8 @@ class DatabaseService {
        )
        SELECT * FROM combined`,
       [id, user_id, original_filename, mime_type, size_bytes,
-       checksum_sha256, storage_backend, storage_key, status, chat_id]);
+       checksum_sha256, storage_backend, storage_key, status, chat_id,
+       metadata]);
     assert(result.rows.length === 1);
     const { created, ...file } = result.rows[0];
     return { file: file as File, created };
@@ -220,6 +241,33 @@ class DatabaseService {
     const result = await this._pool.query(
       `INSERT INTO chats (user_id, title) VALUES ($1, $2) RETURNING *`,
       [user_id, title]);
+    return result.rows[0];
+  }
+
+  async create_chat_message(
+    chat_id: string,
+    role: ChatMessageRole,
+    content: string,
+    metadata: Record<string, unknown> = {},
+    file_ids: string[] = [],
+  ): Promise<ChatMessage> {
+    // Single CTE so the message insert and any chat_message_files attachments
+    // land atomically. An empty file_ids array yields no attachment rows.
+    const result = await this._pool.query(
+      `WITH msg AS (
+         INSERT INTO chat_messages (chat_id, role, content, metadata)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *
+       ),
+       attached AS (
+         INSERT INTO chat_message_files (message_id, file_id)
+         SELECT msg.id, file_id
+           FROM msg, unnest($5::uuid[]) AS file_id
+         ON CONFLICT DO NOTHING
+       )
+       SELECT * FROM msg`,
+      [chat_id, role, content, metadata, file_ids]);
+    assert(result.rows.length === 1);
     return result.rows[0];
   }
 

@@ -23,6 +23,7 @@ interface FileUploadOptions {
   file_path: string;
   username: string;
   password: string;
+  metadata?: Record<string, string>;
 }
 
 interface FileUploadResult {
@@ -53,13 +54,17 @@ export async function file_upload(
 
   // 2. Upload. The route expects multipart/form-data with a single `file`
   //    part. The server sniffs the MIME type from the bytes; the filename is
-  //    preserved as the file's display name. The chat_id in the path is
-  //    validated by the chat-validate hook — a chat the user does not own
-  //    returns 404 before the upload runs.
+  //    preserved as the file's display name. Any additional non-file fields
+  //    are stored on the file row as string-valued metadata. The chat_id in
+  //    the path is validated by the chat-validate hook — a chat the user does
+  //    not own returns 404 before the upload runs.
   const buf = await fs.promises.readFile(opts.file_path);
   const form = new FormData();
   form.set("file", new Blob([new Uint8Array(buf)]),
     path.basename(opts.file_path));
+  for (const [name, value] of Object.entries(opts.metadata ?? {})) {
+    form.set(name, value);
+  }
 
   const upload_res = await fetch(
     `${opts.base_url}/api/chats/${encodeURIComponent(opts.chat_id)}/files/upload`,
@@ -91,6 +96,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     file_path,
     username: process.env.USERNAME ?? "testuser",
     password: process.env.PASSWORD ?? "irrelevant",
+    metadata: { source: "file-upload-cli" },
   });
   console.log(JSON.stringify(result, null, 2));
 }
