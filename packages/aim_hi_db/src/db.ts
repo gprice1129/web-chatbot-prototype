@@ -37,6 +37,7 @@ interface User {
 
 interface Application {
   id: string;
+  slug: string;
   name: string;
   description: string | null;
 }
@@ -195,7 +196,7 @@ class DatabaseService {
 
   async list_enabled_applications(): Promise<Application[]> {
     const result = await this._pool.query(
-      "SELECT id, name, description FROM applications WHERE enabled ORDER BY created_at");
+      "SELECT id, slug, name, description FROM applications WHERE enabled ORDER BY created_at");
     return result.rows;
   }
 

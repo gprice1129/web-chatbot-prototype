@@ -4,7 +4,7 @@
 // list). Running it against a live server asserts that the route works
 // end-to-end:
 //
-//   npm run applications -- [base-url]
+//   npm run application-get -- [base-url]
 //
 // The server must be running with APP_ENV=test, which seeds `testuser` and
 // configures the testing auth service to ignore the password.
@@ -13,7 +13,7 @@
 // undici picks it up when the global dispatcher is created.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
-interface ApplicationsOptions {
+interface ApplicationGetOptions {
   base_url: string;
   username: string;
   password: string;
@@ -21,16 +21,17 @@ interface ApplicationsOptions {
 
 interface Application {
   id: string;
+  slug: string;
   name: string;
   description?: string;
 }
 
-interface ApplicationsResult {
+interface ApplicationGetResult {
   applications: Application[];
 }
 
-export async function applications(
-    opts: ApplicationsOptions): Promise<ApplicationsResult> {
+export async function application_get(
+    opts: ApplicationGetOptions): Promise<ApplicationGetResult> {
   // 1. Login. The response sets a signed `session` cookie that gated routes
   //    (including /applications) require on subsequent requests.
   const login_res = await fetch(`${opts.base_url}/api/login`, {
@@ -51,8 +52,8 @@ export async function applications(
   if (!session_cookie) throw new Error("Login response had no session cookie");
 
   // 2. Fetch the enabled applications. The route returns
-  //    { applications: [{ id, name, description? }] }, ordered by created_at.
-  //    description is omitted when null.
+  //    { applications: [{ id, slug, name, description? }] }, ordered by
+  //    created_at. description is omitted when null.
   const apps_res = await fetch(`${opts.base_url}/api/applications`, {
     method: "GET", headers: { Cookie: session_cookie } });
   const body = await apps_res.text();
@@ -60,14 +61,14 @@ export async function applications(
     throw new Error(
       `Applications fetch failed (HTTP ${apps_res.status}): ${body}`);
   }
-  return JSON.parse(body) as ApplicationsResult;
+  return JSON.parse(body) as ApplicationGetResult;
 }
 
-// CLI driver — when run via `npm run applications`, exercise the function
+// CLI driver — when run via `npm run application-get`, exercise the function
 // against a live server and print the response. Throws on any failure, which
 // surfaces as a non-zero exit code.
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const result = await applications({
+  const result = await application_get({
     base_url: process.argv[2] ?? "https://localhost",
     username: process.env.USERNAME ?? "testuser",
     password: process.env.PASSWORD ?? "irrelevant",

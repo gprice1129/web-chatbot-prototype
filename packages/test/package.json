@@ -13,7 +13,7 @@
     "file-status": "node build/file-status/file-status.js",
     "file-download": "node build/file-download/file-download.js",
     "file-round-trip": "node build/file-round-trip/file-round-trip.js",
-    "applications": "node build/applications/applications.js",
+    "application-get": "node build/application-get/application-get.js",
     "chat-create": "node build/chat-create/chat-create.js",
     "chat-get": "node build/chat-get/chat-get.js",
     "chat-update": "node build/chat-update/chat-update.js"

@@ -1,6 +1,6 @@
-# applications
+# application-get
 
-End-to-end exercise of `GET /api/applications`. Logs in as `testuser`, fetches the list of enabled applications, and prints the `{ applications: [{ id, name, description? }] }` response.
+End-to-end exercise of `GET /api/applications`. Logs in as `testuser`, fetches the list of enabled applications, and prints the `{ applications: [{ id, slug, name, description? }] }` response.
 
 The list is ordered by `created_at`. `description` is omitted when null.
 
@@ -17,7 +17,7 @@ From `packages/test/`:
 
 ```sh
 npm run build
-npm run applications -- [base-url]
+npm run application-get -- [base-url]
 ```
 
 `base-url` defaults to `https://localhost`.
