@@ -16,6 +16,8 @@
     "application-get": "node build/application-get/application-get.js",
     "chat-create": "node build/chat-create/chat-create.js",
     "chat-get": "node build/chat-get/chat-get.js",
-    "chat-update": "node build/chat-update/chat-update.js"
+    "chat-messages-get": "node build/chat-messages-get/chat-messages-get.js",
+    "chat-update": "node build/chat-update/chat-update.js",
+    "files-info": "node build/files-info/files-info.js"
   }
 }

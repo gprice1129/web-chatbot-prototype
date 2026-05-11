@@ -3,6 +3,7 @@ export {
   Chat,
   ChatMessage,
   ChatMessageRole,
+  ChatMessageWithFileIds,
   File,
   FileStatus,
   Session,
@@ -67,6 +68,13 @@ interface ChatMessage {
   content: string;
   metadata: Record<string, unknown>;
   created_at: Date;
+}
+
+// Messages carry only the ids of attached files; clients hydrate to full File
+// rows through get_files_by_ids (the POST /chats/:chat_id/files/info endpoint)
+// so status transitions (queued -> parsed) reflect without snapshotting.
+interface ChatMessageWithFileIds extends ChatMessage {
+  file_ids: string[];
 }
 
 interface File {
@@ -242,6 +250,45 @@ class DatabaseService {
       `INSERT INTO chats (user_id, title) VALUES ($1, $2) RETURNING *`,
       [user_id, title]);
     return result.rows[0];
+  }
+
+  async get_chat_messages_by_chat_id(
+    chat_id: string, user_id: string
+  ): Promise<ChatMessageWithFileIds[]> {
+    // Attached file ids are aggregated in a LATERAL subquery so the result is
+    // one row per message (no fanout) and one round-trip (no N+1). array_agg
+    // returns NULL when there are no matches, hence the COALESCE to {}.
+    const result = await this._pool.query(
+      `SELECT cm.id, cm.chat_id, cm.role, cm.content, cm.metadata, cm.created_at,
+              COALESCE(mf.file_ids, '{}'::uuid[]) AS file_ids
+         FROM chat_messages cm
+         JOIN chats c ON c.id = cm.chat_id
+         LEFT JOIN LATERAL (
+           SELECT array_agg(cmf.file_id ORDER BY cmf.created_at) AS file_ids
+             FROM chat_message_files cmf
+            WHERE cmf.message_id = cm.id
+         ) mf ON true
+        WHERE cm.chat_id = $1 AND c.user_id = $2
+        ORDER BY cm.created_at ASC`,
+      [chat_id, user_id]);
+    return result.rows;
+  }
+
+  async get_files_by_ids(
+    ids: string[], chat_id: string, user_id: string
+  ): Promise<File[]> {
+    // Scoped to the chat (via chat_files) and the user, matching the
+    // existence semantics of get_file_by_id — ids the caller cannot see are
+    // silently omitted rather than 404'd, so a partial result is normal.
+    if (ids.length === 0) return [];
+    const result = await this._pool.query(
+      `SELECT f.* FROM files f
+         JOIN chat_files cf ON cf.file_id = f.id
+        WHERE f.id = ANY($1::uuid[])
+          AND cf.chat_id = $2
+          AND f.user_id = $3`,
+      [ids, chat_id, user_id]);
+    return result.rows;
   }
 
   async create_chat_message(
