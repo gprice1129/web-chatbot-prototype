@@ -274,6 +274,16 @@ class DatabaseService {
     return result.rows;
   }
 
+  async get_chat_files(chat_id: string, user_id: string): Promise<File[]> {
+    const result = await this._pool.query(
+      `SELECT f.* FROM files f
+         JOIN chat_files cf ON cf.file_id = f.id
+        WHERE cf.chat_id = $1 AND f.user_id = $2
+        ORDER BY f.created_at DESC`,
+      [chat_id, user_id]);
+    return result.rows;
+  }
+
   async get_files_by_ids(
     ids: string[], chat_id: string, user_id: string
   ): Promise<File[]> {
