@@ -11,7 +11,7 @@
 --   3. a row is inserted with status 'uploaded'. if the mime type is
 --      parsable, a parse job is enqueued via pg-boss and the status is
 --      updated to 'queued'.
---   4. the parser worker (packages/aim_hi_parser) writes its output and
+--   4. the parser worker (packages/parser) writes its output and
 --      transitions the row to 'parsed' or 'parse_failed'.
 --
 -- key design choices:
