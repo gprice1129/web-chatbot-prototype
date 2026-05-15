@@ -6,7 +6,7 @@
     "outDir": "./build"
   },
   "references": [
-    { "path": "../aim_hi_db" },
+    { "path": "../db" },
     { "path": "../aim_hi_jobs" }
   ],
   "include": ["src/**/*.ts"]

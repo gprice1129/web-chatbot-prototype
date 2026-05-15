@@ -6,7 +6,7 @@
   "dependencies": {
     "@types/node": "^25.5.0",
     "@types/pdf-parse": "^1.1.4",
-    "aim_hi_db": "*",
+    "db": "*",
     "aim_hi_jobs": "*",
     "mammoth": "^1.8.0",
     "pdf-parse": "^1.1.1",

@@ -1,5 +1,5 @@
 import * as fs from "node:fs";
-import DatabaseService, { FileStatus } from "aim_hi_db";
+import DatabaseService, { FileStatus } from "db";
 import {
   type PgBoss,
   run_PgBoss,
