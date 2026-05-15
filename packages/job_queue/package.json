@@ -1,5 +1,5 @@
 {
-  "name": "aim_hi_jobs",
+  "name": "job_queue",
   "version": "1.0.0",
   "private": true,
   "type": "module",

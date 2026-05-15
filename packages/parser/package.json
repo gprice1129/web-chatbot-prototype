@@ -7,7 +7,7 @@
     "@types/node": "^25.5.0",
     "@types/pdf-parse": "^1.1.4",
     "db": "*",
-    "aim_hi_jobs": "*",
+    "job_queue": "*",
     "mammoth": "^1.8.0",
     "pdf-parse": "^1.1.1",
     "typescript": "^5.9.3"

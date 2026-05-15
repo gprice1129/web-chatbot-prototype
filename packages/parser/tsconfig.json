@@ -7,7 +7,7 @@
   },
   "references": [
     { "path": "../db" },
-    { "path": "../aim_hi_jobs" }
+    { "path": "../job_queue" }
   ],
   "include": ["src/**/*.ts"]
 }

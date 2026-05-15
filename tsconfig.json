@@ -3,7 +3,7 @@
   "references": [
     { "path": "./packages/aim_hi_chatbot" },
     { "path": "./packages/db" },
-    { "path": "./packages/aim_hi_jobs" },
+    { "path": "./packages/job_queue" },
     { "path": "./packages/aim_hi_webserver" },
     { "path": "./packages/parser" }
   ]

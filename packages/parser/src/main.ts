@@ -5,7 +5,7 @@ import {
   run_PgBoss,
   register_parser,
   ParseFileJob,
-} from "aim_hi_jobs";
+} from "job_queue";
 import { parse_file } from "#lib/parser.js";
 
 async function main(): Promise<void> {
