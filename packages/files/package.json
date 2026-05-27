@@ -1,0 +1,25 @@
+{
+  "name": "files",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./build/local-files.js",
+  "types": "./build/local-files.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/local-files.d.ts",
+      "default": "./build/local-files.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "tsc -b test && node --test test/build/*.js"
+  },
+  "dependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.3"
+  }
+}
