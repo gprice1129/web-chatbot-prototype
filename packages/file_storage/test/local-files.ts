@@ -10,7 +10,7 @@ import * as path from "node:path";
 import { Readable } from "node:stream";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import * as assert from "node:assert/strict";
-import { LocalFileService } from "files";
+import { LocalFileService } from "file_storage";
 
 let base_path: string;
 let svc: LocalFileService;
