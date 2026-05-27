@@ -16,9 +16,11 @@ interface FileService {
   // back to the service that owns its bytes.
   readonly backend: string;
 
-  // Allocate a fresh storage_key, stream the bytes to it, and return the
-  // resulting metadata. Cleans up the partial blob on any failure.
-  write(stream: Readable): Promise<WriteResult>;
+  // Stream the bytes to the backend and return the resulting metadata. If
+  // `storage_key` is omitted a fresh one is allocated; if supplied, the bytes
+  // are written at that key (overwriting any existing blob there).
+  // Cleans up the partial blob on any failure.
+  write(stream: Readable, storage_key?: string): Promise<WriteResult>;
 
   // Open a read stream for an existing storage_key. Awaits the stream's
   // "open" event so a missing key surfaces here rather than mid-response

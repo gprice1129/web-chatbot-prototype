@@ -7,6 +7,7 @@
   },
   "references": [
     { "path": "../db" },
+    { "path": "../file_storage" },
     { "path": "../job_queue" }
   ],
   "include": ["src/**/*.ts"]

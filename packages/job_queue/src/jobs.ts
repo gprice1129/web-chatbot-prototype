@@ -13,7 +13,7 @@ import PgBoss from "pg-boss";
 interface ParseFileJob {
   file_id: string;
   mime_type: string;
-  file_path: string;
+  storage_key: string;
 }
 
 type ParseFileWorker = (job: PgBoss.Job<ParseFileJob>[]) => Promise<void>;

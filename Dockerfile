@@ -9,6 +9,7 @@ COPY packages/aim_hi_chatbot/package.json packages/aim_hi_chatbot/package.json
 COPY packages/job_queue/package.json packages/job_queue/package.json
 COPY packages/parser/package.json packages/parser/package.json
 COPY packages/db/package.json packages/db/package.json
+COPY packages/file_storage/package.json packages/file_storage/package.json
 
 RUN npm ci
 
@@ -18,6 +19,7 @@ COPY packages/aim_hi_chatbot packages/aim_hi_chatbot
 COPY packages/job_queue packages/job_queue
 COPY packages/parser packages/parser
 COPY packages/db packages/db
+COPY packages/file_storage packages/file_storage
 
 RUN npm run build
 
@@ -30,10 +32,12 @@ COPY packages/aim_hi_webserver/package.json packages/aim_hi_webserver/package.js
 COPY packages/aim_hi_chatbot/package.json packages/aim_hi_chatbot/package.json
 COPY packages/job_queue/package.json packages/job_queue/package.json
 COPY packages/db/package.json packages/db/package.json
+COPY packages/file_storage/package.json packages/file_storage/package.json
 COPY --from=build /app/packages/aim_hi_webserver/build packages/aim_hi_webserver/build
 COPY --from=build /app/packages/aim_hi_chatbot/build packages/aim_hi_chatbot/build
 COPY --from=build /app/packages/job_queue/build packages/job_queue/build
 COPY --from=build /app/packages/db/build packages/db/build
+COPY --from=build /app/packages/file_storage/build packages/file_storage/build
 
 RUN npm ci --omit=dev
 
@@ -49,9 +53,11 @@ COPY package.json package-lock.json ./
 COPY packages/job_queue/package.json packages/job_queue/package.json
 COPY packages/parser/package.json packages/parser/package.json
 COPY packages/db/package.json packages/db/package.json
+COPY packages/file_storage/package.json packages/file_storage/package.json
 COPY --from=build /app/packages/job_queue/build packages/job_queue/build
 COPY --from=build /app/packages/parser/build packages/parser/build
 COPY --from=build /app/packages/db/build packages/db/build
+COPY --from=build /app/packages/file_storage/build packages/file_storage/build
 
 RUN npm ci --omit=dev
 

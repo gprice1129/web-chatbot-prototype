@@ -2,7 +2,6 @@ export {
   parse_file,
 }
 
-import * as fs from "node:fs";
 import mammoth from "mammoth";
 import pdf_parse from "pdf-parse";
 
@@ -10,15 +9,14 @@ import pdf_parse from "pdf-parse";
 const MIME_PDF = "application/pdf";
 const MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-async function parse_file(file_path: string, mime_type: string): Promise<string> {
+async function parse_file(buffer: Buffer, mime_type: string): Promise<string> {
   switch (mime_type) {
     case MIME_PDF: {
-      const buf = await fs.promises.readFile(file_path);
-      const result = await pdf_parse(buf);
+      const result = await pdf_parse(buffer);
       return result.text;
     }
     case MIME_DOCX: {
-      const result = await mammoth.extractRawText({ path: file_path });
+      const result = await mammoth.extractRawText({ buffer });
       return result.value;
     }
     default:

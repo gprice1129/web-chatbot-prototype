@@ -23,8 +23,8 @@ class LocalFileService implements FileService {
     this._base_path = cfg.base_path;
   }
 
-  async write(stream: Readable): Promise<WriteResult> {
-    const storage_key = uuid_to_path(crypto.randomUUID());
+  async write(stream: Readable, storage_key?: string): Promise<WriteResult> {
+    storage_key ??= uuid_to_path(crypto.randomUUID());
     const file_path = this._resolve_path(storage_key);
     const hash = crypto.createHash("sha256");
     let size_bytes = 0;

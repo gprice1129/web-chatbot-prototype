@@ -1,4 +1,5 @@
-import * as fs from "node:fs";
+import { Readable } from "node:stream";
+import { buffer } from "node:stream/consumers";
 import DatabaseService, { FileStatus } from "db";
 import {
   type PgBoss,
@@ -6,25 +7,32 @@ import {
   register_parser,
   ParseFileJob,
 } from "job_queue";
+import { LocalFileService } from "file_storage";
 import { parse_file } from "#lib/parser.js";
 
 async function main(): Promise<void> {
   const db = new DatabaseService();
   const boss = await run_PgBoss();
+  const file_service = new LocalFileService({
+    base_path: required_env("FILES_BASE_PATH"),
+  });
   await register_parser(boss, async (jobs: PgBoss.Job<ParseFileJob>[]) => {
     for (const job of jobs) {
-      const { file_id, mime_type, file_path } = job.data;
+      const { file_id, mime_type, storage_key } = job.data;
       console.log(`[${job.id}] parsing ${file_id} (${mime_type})`);
+      const parsed_storage_key = `${storage_key}_parsed.txt`;
       try {
-        const text = await parse_file(file_path, mime_type);
-        const parsed_path = `${file_path}_parsed.txt`;
-        await fs.promises.writeFile(parsed_path, text, "utf-8");
+        const input = await file_service.read(storage_key);
+        const buf = await buffer(input);
+        const text = await parse_file(buf, mime_type);
+        await file_service.write(Readable.from(Buffer.from(text, "utf-8")),
+          parsed_storage_key);
         await db.update_file_status(file_id, FileStatus.PARSED);
-        console.log(`[${job.id}] wrote ${parsed_path}`);
+        console.log(`[${job.id}] wrote ${parsed_storage_key}`);
       } catch (err) {
-        // TODO:[parser] on failure we may have left a partial `_parsed.txt`
-        // on disk. unlink it so a stale file doesn't get treated as success
-        // by downstream consumers.
+        // Drop any partial parsed blob so a stale file is not treated as
+        // success by downstream consumers.
+        await file_service.delete(parsed_storage_key).catch(() => {});
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[${job.id}] parse failed for ${file_id}: ${msg}`);
         await db.update_file_status(file_id, FileStatus.PARSE_FAILED, msg);
@@ -42,6 +50,14 @@ async function main(): Promise<void> {
       process.exit(0);
     });
   }
+}
+
+function required_env(name: string): string {
+  const val = process.env[name];
+  if (undefined === val || "" === val) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return val;
 }
 
 await main();

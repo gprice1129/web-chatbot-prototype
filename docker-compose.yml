@@ -2,7 +2,7 @@ services:
   app:
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      UPLOAD_BASE_PATH: ${UPLOAD_BASE_PATH}
+      FILES_BASE_PATH: ${FILES_BASE_PATH}
       COOKIE_KEY: ${COOKIE_KEY}
       APP_ENV: ${APP_ENV:-production}
       PGHOST: postgres
@@ -31,10 +31,10 @@ services:
       retries: 30
       start_period: 10s
     volumes:
-      - uploads:${UPLOAD_BASE_PATH}
+      - uploads:${FILES_BASE_PATH}
   parser:
     environment:
-      UPLOAD_BASE_PATH: ${UPLOAD_BASE_PATH}
+      FILES_BASE_PATH: ${FILES_BASE_PATH}
       PGHOST: postgres
       PGPORT: 5432
       PGUSER: ${APP_DB_USER}
@@ -50,7 +50,7 @@ services:
       app:
         condition: service_healthy
     volumes:
-      - uploads:${UPLOAD_BASE_PATH}
+      - uploads:${FILES_BASE_PATH}
   nginx:
     build:
       context: .
