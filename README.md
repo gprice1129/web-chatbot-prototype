@@ -27,8 +27,9 @@ npm install
 Create a `.env` file in the project root:
 
 ```env
-# Anthropic
-ANTHROPIC_API_KEY=your-api-key
+# Anthropic (the endpoint the chatbot targets + its credential)
+ANTHROPIC_BASE_URL=https://api.anthropic.com
+ANTHROPIC_BASE_URL_API_KEY=your-api-key
 
 # Postgres superuser (used only during initial DB setup)
 POSTGRES_USER=postgres
