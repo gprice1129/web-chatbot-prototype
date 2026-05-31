@@ -20,6 +20,7 @@
     "chat-update": "node build/chat-update/chat-update.js",
     "files-info": "node build/files-info/files-info.js",
     "grant-review": "node build/grant-review/grant-review.js",
-    "grant-review-full": "node build/grant-review-full/grant-review-full.js"
+    "grant-review-full": "node build/grant-review-full/grant-review-full.js",
+    "ally": "node build/ally/ally.js"
   }
 }
