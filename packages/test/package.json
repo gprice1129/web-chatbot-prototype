@@ -21,6 +21,14 @@
     "files-info": "node build/files-info/files-info.js",
     "grant-review": "node build/grant-review/grant-review.js",
     "grant-review-full": "node build/grant-review-full/grant-review-full.js",
-    "ally": "node build/ally/ally.js"
+    "ally": "node build/ally/ally.js",
+    "project-create": "node build/project-create/project-create.js",
+    "project-get": "node build/project-get/project-get.js",
+    "project-update": "node build/project-update/project-update.js",
+    "project-delete": "node build/project-delete/project-delete.js",
+    "project-chats-get": "node build/project-chats-get/project-chats-get.js",
+    "project-chat-add": "node build/project-chat-add/project-chat-add.js",
+    "project-chat-remove": "node build/project-chat-remove/project-chat-remove.js",
+    "project-round-trip": "node build/project-round-trip/project-round-trip.js"
   }
 }

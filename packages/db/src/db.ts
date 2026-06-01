@@ -6,6 +6,7 @@ export {
   ChatMessageWithFileIds,
   File,
   FileStatus,
+  Project,
   Session,
   User
 }
@@ -56,6 +57,15 @@ interface Chat {
   id: string;
   user_id: string;
   title: string;
+  metadata: Record<string, unknown>;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface Project {
+  id: string;
+  user_id: string;
+  name: string;
   metadata: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
@@ -339,6 +349,97 @@ class DatabaseService {
     assert(result.rows.length <= 1);
     if (result.rows.length === 0) return null;
     return result.rows[0];
+  }
+
+  async get_projects_by_user(user_id: string): Promise<Project[]> {
+    const result = await this._pool.query(
+      "SELECT * FROM projects WHERE user_id = $1 ORDER BY created_at DESC",
+      [user_id]);
+    return result.rows;
+  }
+
+  async get_project_by_id(id: string, user_id: string): Promise<Project | null> {
+    const result = await this._pool.query(
+      "SELECT * FROM projects WHERE id = $1 AND user_id = $2",
+      [id, user_id]);
+    assert(result.rows.length <= 1);
+    if (result.rows.length === 0) return null;
+    return result.rows[0];
+  }
+
+  async create_project(user_id: string, name: string): Promise<Project> {
+    const result = await this._pool.query(
+      `INSERT INTO projects (user_id, name) VALUES ($1, $2) RETURNING *`,
+      [user_id, name]);
+    return result.rows[0];
+  }
+
+  async update_project_name(
+    id: string, user_id: string, name: string
+  ): Promise<Project | null> {
+    const result = await this._pool.query(
+      `UPDATE projects SET name = $3
+        WHERE id = $1 AND user_id = $2
+        RETURNING *`,
+      [id, user_id, name]);
+    assert(result.rows.length <= 1);
+    if (result.rows.length === 0) return null;
+    return result.rows[0];
+  }
+
+  async delete_project(id: string, user_id: string): Promise<boolean> {
+    const result = await this._pool.query(
+      "DELETE FROM projects WHERE id = $1 AND user_id = $2",
+      [id, user_id]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async get_chats_by_project(
+    project_id: string, user_id: string
+  ): Promise<Chat[]> {
+    // Joined through projects so the project ownership is re-checked here too
+    // (defense in depth alongside the project-validate hook), matching the
+    // user-scoped style of get_chat_messages_by_chat_id.
+    const result = await this._pool.query(
+      `SELECT c.* FROM chats c
+         JOIN project_chats pc ON pc.chat_id = c.id
+         JOIN projects p ON p.id = pc.project_id
+        WHERE pc.project_id = $1 AND p.user_id = $2 AND c.user_id = $2
+        ORDER BY c.created_at DESC`,
+      [project_id, user_id]);
+    return result.rows;
+  }
+
+  async add_chat_to_project(
+    project_id: string, chat_id: string, user_id: string
+  ): Promise<boolean> {
+    // Guarded insert: the link lands only if BOTH the project and the chat
+    // belong to user_id. ON CONFLICT keeps re-adding idempotent (an existing
+    // link yields rowCount 0).
+    const result = await this._pool.query(
+      `INSERT INTO project_chats (project_id, chat_id)
+       SELECT p.id, c.id
+         FROM projects p, chats c
+        WHERE p.id = $1 AND p.user_id = $3
+          AND c.id = $2 AND c.user_id = $3
+       ON CONFLICT DO NOTHING`,
+      [project_id, chat_id, user_id]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async remove_chat_from_project(
+    project_id: string, chat_id: string, user_id: string
+  ): Promise<boolean> {
+    // Scoped by project ownership so a user can only edit their own projects'
+    // membership.
+    const result = await this._pool.query(
+      `DELETE FROM project_chats pc
+         USING projects p
+        WHERE pc.project_id = p.id
+          AND p.id = $1 AND p.user_id = $3
+          AND pc.chat_id = $2`,
+      [project_id, chat_id, user_id]);
+    return (result.rowCount ?? 0) > 0;
   }
 
   async close(): Promise<void> {
