@@ -42,13 +42,15 @@ APP_DB_NAME=chatbot
 
 # Nginx
 SERVER_NAME=your.domain.com
-SSL_CERT_FILE=cert.pem
-SSL_KEY_FILE=key.pem
 ```
 
-### 3. Add SSL certificates
+### 3. TLS
 
-Place your SSL certificate and key in `config/nginx/certs/`, matching the filenames set in `SSL_CERT_FILE` and `SSL_KEY_FILE`.
+TLS is terminated by the host's nginx, which proxies to the gateway
+container on `127.0.0.1:8080` (plain HTTP). Configure certificates and the
+HTTP→HTTPS redirect in the host nginx, and make sure it sets
+`client_max_body_size 25m` and a `proxy_read_timeout` of at least 300s so
+large uploads and long-running API requests are not cut off at the edge.
 
 ## Running
 
@@ -60,7 +62,7 @@ docker compose up --build
 
 This starts three services:
 - **app** -- Node.js server on port 3000 (internal)
-- **nginx** -- Reverse proxy exposing ports 80 (redirects to HTTPS) and 443
+- **nginx** -- Gateway serving the SPA and proxying `/api`, on `127.0.0.1:8080` (HTTP; sits behind the host's TLS-terminating nginx)
 - **postgres** -- PostgreSQL 17 database
 
 The database is automatically bootstrapped with the application role and migrations on first run.

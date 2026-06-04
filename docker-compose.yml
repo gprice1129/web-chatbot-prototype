@@ -1,5 +1,6 @@
 services:
   app:
+    restart: unless-stopped
     environment:
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL}
       ANTHROPIC_BASE_URL_API_KEY: ${ANTHROPIC_BASE_URL_API_KEY}
@@ -21,11 +22,6 @@ services:
     expose:
       - 3000
     healthcheck:
-      # Goes green only after make_file_parse_service() has finished its
-      # pg-boss bootstrap (run_PgBoss + createQueue) -- those run before
-      # app.listen() in main.ts, so a 200 from /health implies they're done.
-      # The parser depends on this so its own pg-boss start does not race
-      # the webserver's DDL.
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 2s
       timeout: 5s
@@ -33,7 +29,11 @@ services:
       start_period: 10s
     volumes:
       - uploads:${FILES_BASE_PATH}
+    mem_limit: 768m
+    cpus: "1.0"
+
   parser:
+    restart: unless-stopped
     environment:
       FILES_BASE_PATH: ${FILES_BASE_PATH}
       PGHOST: postgres
@@ -52,6 +52,9 @@ services:
         condition: service_healthy
     volumes:
       - uploads:${FILES_BASE_PATH}
+    mem_limit: 512m
+    cpus: "0.75"
+
   nginx:
     build:
       context: .
@@ -60,22 +63,17 @@ services:
       args:
         FE_PACKAGE: aim_hi_fe
         FE_DIST_DIR: dist
-    container_name: nginx-gateway
     restart: unless-stopped
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:8080:80"
     environment:
       SERVER_NAME: ${SERVER_NAME}
-      SSL_CERT_FILE: ${SSL_CERT_FILE}
-      SSL_KEY_FILE: ${SSL_KEY_FILE}
-    volumes:
-      - ./config/nginx/certs:/etc/nginx/certs:ro
+
   postgres:
     image: postgres:17-alpine
-    container_name: postgres
     restart: unless-stopped
     expose:
       - 5432
@@ -96,6 +94,8 @@ services:
       - ./config/db/seed.sh:/docker-entrypoint-initdb.d/20_seed.sh:ro
       - ./config/db/migrations:/migrations:ro
       - ./config/db/seed:/seed:ro
+    mem_limit: 768m
+    cpus: "1.0"
 
 volumes:
   postgres_data:

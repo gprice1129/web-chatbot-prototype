@@ -18,13 +18,16 @@ set -euo pipefail
 # and database from inside the container -- no host-side env file needed.
 #
 # Usage:
-#   scripts/inject_user.sh <username> <email> <password>
+#   scripts/inject_user.sh <username> <email> <password> [db_container]
 #
 # Example:
 #   scripts/inject_user.sh alice alice@example.com 's3cret!'
+#   scripts/inject_user.sh alice alice@example.com 's3cret!' aim-hi-postgres-1
 #
-# Environment overrides:
-#   DB_CONTAINER   name of the postgres container (default: postgres)
+# The postgres container can be given as the optional 4th argument. If
+# omitted it falls back to the DB_CONTAINER env var, then to "postgres".
+# (Compose no longer pins container_name, so the running name is usually
+# something like <project>-postgres-1 -- find it with `docker compose ps`.)
 #
 # Notes:
 #   * Re-running with an existing username updates that user's email,
@@ -34,19 +37,19 @@ set -euo pipefail
 #     email. If the email already belongs to a *different* user, psql
 #     reports a unique-violation and the script exits non-zero.
 
-DB_CONTAINER="${DB_CONTAINER:-postgres}"
-
 usage() {
-  echo "usage: $0 <username> <email> <password>" >&2
+  echo "usage: $0 <username> <email> <password> [db_container]" >&2
   exit 2
 }
 
-[ "$#" -eq 3 ] || usage
+[ "$#" -ge 3 ] && [ "$#" -le 4 ] || usage
 USERNAME="$1"
 EMAIL="$2"
 PASSWORD="$3"
+# Container name: explicit 4th arg wins, then $DB_CONTAINER, then "postgres".
+DB_CONTAINER="${4:-${DB_CONTAINER:-postgres}}"
 
-[ -n "$USERNAME" ] && [ -n "$EMAIL" ] && [ -n "$PASSWORD" ] || usage
+[ -n "$USERNAME" ] && [ -n "$EMAIL" ] && [ -n "$PASSWORD" ] && [ -n "$DB_CONTAINER" ] || usage
 
 # Resolve the project root (parent of this script's dir) so node picks up
 # the workspace's node_modules/argon2 regardless of where we're invoked.
