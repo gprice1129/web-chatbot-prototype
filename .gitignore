@@ -1,4 +1,5 @@
 .env*
+secrets/
 config/nginx/certs
 node_modules
 build/

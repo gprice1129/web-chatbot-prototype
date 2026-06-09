@@ -8,7 +8,21 @@ export {
   enqueue_parse_job,
 }
 
+import * as fs from "node:fs";
 import PgBoss from "pg-boss";
+
+// Resolve a secret from either NAME (a plaintext env var) or NAME_FILE (a path
+// to a file holding the value, e.g. a Docker secret at /run/secrets). pg-boss
+// opens its own pg connection, so it needs the same *_FILE support that
+// DatabaseService applies to PGPASSWORD. Plaintext env wins; trailing newline
+// is stripped; undefined when neither is set.
+function read_secret(name: string): string | undefined {
+  const direct = process.env[name];
+  if (undefined !== direct && "" !== direct) return direct;
+  const file = process.env[`${name}_FILE`];
+  if (file) return fs.readFileSync(file, "utf8").trim();
+  return undefined;
+}
 
 interface ParseFileJob {
   file_id: string;
@@ -34,7 +48,7 @@ async function run_PgBoss(): Promise<PgBoss> {
     host: process.env["PGHOST"],
     port: process.env["PGPORT"] ? Number(process.env["PGPORT"]) : undefined,
     user: process.env["PGUSER"],
-    password: process.env["PGPASSWORD"],
+    password: read_secret("PGPASSWORD"),
     database: process.env["PGDATABASE"],
   });
   boss.on("error", (err: Error) => console.error("pg-boss error:", err));

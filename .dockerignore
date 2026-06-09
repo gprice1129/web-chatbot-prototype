@@ -1,0 +1,19 @@
+# Keep secrets out of build context
+.env*
+secrets/
+
+# Version control and tooling
+.git
+.gitignore
+
+# Dependencies and build output — reinstalled / rebuilt inside the image
+node_modules
+**/node_modules
+**/build
+**/dist
+**/*.tsbuildinfo
+
+# Test fixtures and artifacts
+packages/test/data/
+**/playwright-report/
+**/test-results/

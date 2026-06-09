@@ -22,27 +22,55 @@ config/
 npm install
 ```
 
-### 2. Configure environment variables
+### 2. Configure environment and secrets
+
+Non-secret configuration is supplied via an env file read by Docker Compose.
+Secret values are **not** kept here — they are mounted into the containers as
+files via Docker Compose `secrets:` (see below), which keeps them out of
+`docker inspect`, `/proc/<pid>/environ`, child-process env, and crash logs.
 
 Create a `.env` file in the project root:
 
 ```env
-# Anthropic (the endpoint the chatbot targets + its credential)
+# Anthropic (the endpoint the chatbot targets; its credential is a secret)
 ANTHROPIC_BASE_URL=https://api.anthropic.com
-ANTHROPIC_BASE_URL_API_KEY=your-api-key
 
-# Postgres superuser (used only during initial DB setup)
+# Postgres / application database (names and roles only; passwords are secrets)
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your-superuser-password
-
-# Application database
 APP_DB_USER=app
-APP_DB_PASSWORD=your-app-db-password
 APP_DB_NAME=chatbot
 
-# Nginx
+# Storage, runtime, nginx
+FILES_BASE_PATH=/var/lib/aim_hi/uploads
+APP_ENV=production
 SERVER_NAME=your.domain.com
 ```
+
+#### Secrets
+
+The compose stack reads four secrets from files (mounted at
+`/run/secrets/<name>`):
+
+| secret file         | used by            |
+| ------------------- | ------------------ |
+| `postgres_password` | postgres superuser |
+| `app_db_password`   | app, parser, db    |
+| `cookie_key`        | session signing    |
+| `anthropic_api_key` | chatbot credential |
+
+Generate them (random values for the DB/cookie secrets; you paste the API key):
+
+```sh
+scripts/gen_secrets.sh                          # writes ./secrets/*
+# or point at a location outside the repo on the server:
+SECRETS_DIR=/etc/aim-hi/secrets scripts/gen_secrets.sh
+```
+
+Compose looks for `./secrets/` by default; override with the `SECRETS_DIR`
+variable in your env file. The files are `chmod 600` and the `secrets/`
+directory is gitignored. The app also accepts any of these as a plain
+`*_FILE` env var (e.g. `COOKIE_KEY_FILE`, `PGPASSWORD_FILE`) if you wire
+secrets in some other way.
 
 ### 3. TLS
 
