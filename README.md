@@ -80,6 +80,35 @@ HTTP→HTTPS redirect in the host nginx, and make sure it sets
 `client_max_body_size 25m` and a `proxy_read_timeout` of at least 300s so
 large uploads and long-running API requests are not cut off at the edge.
 
+### 4. Rate limiting
+
+`/login` and the LLM endpoints are rate limited. Login is keyed by client IP;
+the LLM endpoints are keyed per authenticated user.
+
+The limits are configurable via env vars, with the default values set in
+`docker-compose.yml`. Each endpoint has a `MAX` (request count) and `WINDOW`
+(duration); omit either from your `.env` to keep the compose default:
+
+| env var | default | meaning |
+| ------- | ------- | ------- |
+| `RATE_LIMIT_LOGIN_MAX` / `RATE_LIMIT_LOGIN_WINDOW`               | 5 / 1 minute  | login attempts per IP |
+| `RATE_LIMIT_ALLY_MAX` / `RATE_LIMIT_ALLY_WINDOW`                 | 30 / 1 minute | Ally calls per user |
+| `RATE_LIMIT_GRANT_REVIEW_MAX` / `RATE_LIMIT_GRANT_REVIEW_WINDOW` | 10 / 1 hour   | grant reviews per user |
+
+`MAX` is a positive integer. `WINDOW` accepts a duration string (`30s`,
+`1 minute`, `2h`, `1 day`) or a number of milliseconds. An invalid or missing
+value fails fast at startup rather than silently disabling the limit — these are
+always set under compose, so set them yourself only if you run the server
+outside compose (e.g. local `npm run dev`).
+
+Because the app sits behind nginx, `req.ip` is the proxy's address unless
+`TRUST_PROXY` is set — with it unset the login limit is a single shared bucket
+(coarse but effective and not spoofable). For the host-nginx → gateway-nginx →
+app topology above, set `TRUST_PROXY=2` so the login limit keys on the real
+client IP. Add another hop (e.g. `3`) for each additional trusted proxy/CDN in
+front. Only enable this when the edge proxies are trusted, since it makes the
+app honor the `X-Forwarded-For` header.
+
 ## Running
 
 ### With Docker Compose (production)
