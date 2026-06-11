@@ -81,7 +81,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(2);
   }
   const result = await project_chats_get({
-    base_url: process.argv[3] ?? "https://localhost",
+    base_url: process.argv[3] ?? "http://localhost:8080",
     project_id,
     username: process.env.USERNAME ?? "testuser",
     password: process.env.PASSWORD ?? "irrelevant",

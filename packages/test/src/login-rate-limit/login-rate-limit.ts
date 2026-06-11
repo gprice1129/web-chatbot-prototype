@@ -151,7 +151,7 @@ export async function login_rate_limit(
 // surfaces as a non-zero exit code.
 if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
-  const base_url = args.find((a) => !a.startsWith("--")) ?? "https://localhost";
+  const base_url = args.find((a) => !a.startsWith("--")) ?? "http://localhost:8080";
   const check_reset = process.env.CHECK_RESET === "1" || args.includes("--check-reset");
 
   // Size the burst so it comfortably exceeds the server's max. Prefer an

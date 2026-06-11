@@ -4,7 +4,7 @@ End-to-end exercise of the full grant review flow: creates a chat, uploads the r
 
 ## Prerequisites
 
-- Webserver running and reachable (default `https://localhost`).
+- Webserver running and reachable (default `http://localhost:8080`).
 - Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 - The parser worker is running so parsable mimes (pdf, docx, …) transition from `queued` to `parsed`. Plain-text uploads skip parsing.
@@ -18,7 +18,7 @@ npm run build
 npm run grant-review-full -- <rfa-path> <companion-path> [mode] [base-url]
 ```
 
-`companion-path` is the proposal document for the default modes, or the specific-aims document when `mode=aims`. `mode` defaults to `standard`. Valid modes: `standard`, `summary`, `technical`, `scored`, `aims`. `base-url` defaults to `https://localhost`.
+`companion-path` is the proposal document for the default modes, or the specific-aims document when `mode=aims`. `mode` defaults to `standard`. Valid modes: `standard`, `summary`, `technical`, `scored`, `aims`. `base-url` defaults to `http://localhost:8080`. Pass a full URL (e.g. `https://localhost`) to target a TLS frontend.
 
 Examples:
 

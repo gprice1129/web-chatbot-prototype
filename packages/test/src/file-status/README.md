@@ -6,7 +6,7 @@ End-to-end exercise of `GET /api/chats/:chat_id/files/status/:file_id`. Logs in 
 
 ## Prerequisites
 
-- Webserver running and reachable (default `https://localhost`).
+- Webserver running and reachable (default `http://localhost:8080`).
 - Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
 - A chat id owned by `testuser` — typically obtained from a prior `npm run chat-create` run.
 - A file id owned by `testuser` — typically obtained from a prior `npm run file-upload` run.
@@ -21,7 +21,7 @@ npm run build
 npm run file-status -- <chat-id> <file-id> [base-url]
 ```
 
-`base-url` defaults to `https://localhost`.
+`base-url` defaults to `http://localhost:8080`. Pass a full URL (e.g. `https://localhost`) to target a TLS frontend.
 
 ## Env overrides
 

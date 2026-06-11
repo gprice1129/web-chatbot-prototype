@@ -79,6 +79,6 @@ export async function project_round_trip(base_url: string): Promise<void> {
 // lifecycle against a live server. Throws on any failed assertion or request,
 // which surfaces as a non-zero exit code.
 if (import.meta.url === `file://${process.argv[1]}`) {
-  await project_round_trip(process.argv[2] ?? "https://localhost");
+  await project_round_trip(process.argv[2] ?? "http://localhost:8080");
   console.log("project round trip: OK");
 }

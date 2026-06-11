@@ -4,7 +4,7 @@ End-to-end exercise of `POST /api/applications/grant_review`. Logs in as `testus
 
 ## Prerequisites
 
-- Webserver running and reachable (default `https://localhost`).
+- Webserver running and reachable (default `http://localhost:8080`).
 - Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
 - A chat id owned by `testuser` — typically from a prior `npm run chat-create` run.
 - The chat already has the required files uploaded (via `npm run file-upload`) with the right metadata:
@@ -22,7 +22,7 @@ npm run build
 npm run grant-review -- <chat-id> [mode] [base-url]
 ```
 
-`mode` defaults to `standard`. Valid modes: `standard`, `summary`, `technical`, `scored`, `aims`. `base-url` defaults to `https://localhost`.
+`mode` defaults to `standard`. Valid modes: `standard`, `summary`, `technical`, `scored`, `aims`. `base-url` defaults to `http://localhost:8080`. Pass a full URL (e.g. `https://localhost`) to target a TLS frontend.
 
 ## Env overrides
 

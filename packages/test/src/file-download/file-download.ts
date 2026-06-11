@@ -129,7 +129,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(2);
   }
   const result = await file_download({
-    base_url: process.argv[4] ?? "https://localhost",
+    base_url: process.argv[4] ?? "http://localhost:8080",
     chat_id,
     file_id,
     username: process.env.USERNAME ?? "testuser",

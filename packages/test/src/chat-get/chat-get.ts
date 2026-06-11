@@ -69,7 +69,7 @@ export async function chat_get(opts: ChatGetOptions): Promise<ChatGetResult> {
 // as a non-zero exit code.
 if (import.meta.url === `file://${process.argv[1]}`) {
   const result = await chat_get({
-    base_url: process.argv[2] ?? "https://localhost",
+    base_url: process.argv[2] ?? "http://localhost:8080",
     username: process.env.USERNAME ?? "testuser",
     password: process.env.PASSWORD ?? "irrelevant",
   });

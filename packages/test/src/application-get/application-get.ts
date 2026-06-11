@@ -69,7 +69,7 @@ export async function application_get(
 // surfaces as a non-zero exit code.
 if (import.meta.url === `file://${process.argv[1]}`) {
   const result = await application_get({
-    base_url: process.argv[2] ?? "https://localhost",
+    base_url: process.argv[2] ?? "http://localhost:8080",
     username: process.env.USERNAME ?? "testuser",
     password: process.env.PASSWORD ?? "irrelevant",
   });

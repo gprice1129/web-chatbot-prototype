@@ -15,7 +15,7 @@ so the test does not depend on the auth outcome — both `200` (under
 
 ## Prerequisites
 
-- Webserver running and reachable (default `https://localhost`).
+- Webserver running and reachable (default `http://localhost:8080`).
 - Started with `APP_ENV=test` so `testuser` is seeded (any password is accepted).
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 
@@ -28,7 +28,7 @@ npm run build
 npm run login-rate-limit -- [base-url] [--check-reset]
 ```
 
-`base-url` defaults to `https://localhost`.
+`base-url` defaults to `http://localhost:8080`. Pass a full URL (e.g. `https://localhost`) to target a TLS frontend.
 
 With `--check-reset` (or `CHECK_RESET=1`) the test additionally waits out
 `Retry-After` and confirms login is accepted again once the window rolls over —

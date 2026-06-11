@@ -86,7 +86,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
   // Optional trailing `-- <base-url>` separates the file id list from the
   // base url so chat-id + N file ids can be passed positionally.
-  let base_url = "https://localhost";
+  let base_url = "http://localhost:8080";
   const sep = args.indexOf("--");
   let positional: string[];
   if (sep >= 0) {

@@ -90,7 +90,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error("Usage: ally <chat-id> [message] [base-url]");
     process.exit(2);
   }
-  const base_url = process.argv[4] ?? "https://localhost";
+  const base_url = process.argv[4] ?? "http://localhost:8080";
   const username = process.env.USERNAME ?? "testuser";
   const password = process.env.PASSWORD ?? "irrelevant";
 

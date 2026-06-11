@@ -251,7 +251,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(2);
   }
   const result = await grant_review_full({
-    base_url: process.argv[5] ?? "https://localhost",
+    base_url: process.argv[5] ?? "http://localhost:8080",
     rfa_path,
     companion_path,
     mode: process.argv[4] ?? "standard",

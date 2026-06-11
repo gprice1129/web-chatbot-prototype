@@ -4,7 +4,7 @@ End-to-end exercise of `POST /api/chats/:chat_id/files/info`. Logs in as `testus
 
 ## Prerequisites
 
-- Webserver running and reachable (default `https://localhost`).
+- Webserver running and reachable (default `http://localhost:8080`).
 - Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
 - A chat id owned by `testuser` and one or more file ids attached to that chat — typically obtained from a prior `npm run chat-create` and `npm run file-upload`.
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
@@ -18,7 +18,7 @@ npm run build
 npm run files-info -- <chat-id> <file-id> [<file-id> ...] [-- <base-url>]
 ```
 
-`base-url` defaults to `https://localhost`. The `--` before `<base-url>` separates it from the file id list so multiple ids can be passed positionally.
+`base-url` defaults to `http://localhost:8080`. Pass a full URL (e.g. `https://localhost`) to target a TLS frontend. The `--` before `<base-url>` separates it from the file id list so multiple ids can be passed positionally.
 
 File ids the caller cannot see (wrong owner or not attached to this chat) are silently omitted from the response; compare lengths to detect partial hits.
 

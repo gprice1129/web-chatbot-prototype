@@ -87,7 +87,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(2);
   }
   const result = await chat_messages_get({
-    base_url: process.argv[3] ?? "https://localhost",
+    base_url: process.argv[3] ?? "http://localhost:8080",
     chat_id,
     username: process.env.USERNAME ?? "testuser",
     password: process.env.PASSWORD ?? "irrelevant",

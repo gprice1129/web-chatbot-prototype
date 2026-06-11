@@ -82,7 +82,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(2);
   }
   const result = await project_update({
-    base_url: process.argv[4] ?? "https://localhost",
+    base_url: process.argv[4] ?? "http://localhost:8080",
     project_id,
     name,
     username: process.env.USERNAME ?? "testuser",
