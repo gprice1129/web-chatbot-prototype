@@ -26,6 +26,7 @@ RUN npm run build
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+ARG FILES_BASE_PATH=/var/lib/aim_hi/uploads
 
 COPY package.json package-lock.json ./
 COPY packages/aim_hi_webserver/package.json packages/aim_hi_webserver/package.json
@@ -41,13 +42,20 @@ COPY --from=build /app/packages/file_storage/build packages/file_storage/build
 
 RUN npm ci --omit=dev
 
+# Create the uploads mount point owned by the unprivileged `node` user so the
+# named volume inherits node ownership on first init — a root-owned volume
+# would be unwritable once we drop privileges with USER below.
+RUN mkdir -p "$FILES_BASE_PATH" && chown node:node "$FILES_BASE_PATH"
+
 WORKDIR /app/packages/aim_hi_webserver
 EXPOSE 3000
+USER node
 ENTRYPOINT ["node", "build/main.js"]
 
 FROM node:24-bookworm-slim AS parser
 WORKDIR /app
 ENV NODE_ENV=production
+ARG FILES_BASE_PATH=/var/lib/aim_hi/uploads
 
 COPY package.json package-lock.json ./
 COPY packages/job_queue/package.json packages/job_queue/package.json
@@ -61,7 +69,12 @@ COPY --from=build /app/packages/file_storage/build packages/file_storage/build
 
 RUN npm ci --omit=dev
 
+# Same as the runtime stage: own the uploads mount point as node before
+# dropping privileges, since the parser writes parsed text into the volume.
+RUN mkdir -p "$FILES_BASE_PATH" && chown node:node "$FILES_BASE_PATH"
+
 WORKDIR /app/packages/parser
+USER node
 ENTRYPOINT ["node", "build/main.js"]
 
 FROM node:24-bookworm-slim AS fe-build

@@ -109,6 +109,21 @@ client IP. Add another hop (e.g. `3`) for each additional trusted proxy/CDN in
 front. Only enable this when the edge proxies are trusted, since it makes the
 app honor the `X-Forwarded-For` header.
 
+### 5. Login input limits
+
+The `/login` request is bounded so oversized input never reaches the password
+hash. The field caps reject over-length values with a `400`; the body limit
+rejects an oversized request body with a `413` during parsing. All three are
+configurable via env vars whose defaults live in `docker-compose.yml`; like the
+rate limits, a missing or invalid value fails fast at startup, so set them
+yourself only if you run the server outside compose.
+
+| env var | default | meaning |
+| ------- | ------- | ------- |
+| `LOGIN_USERNAME_MAX_LENGTH` | 64   | max username length, in characters |
+| `LOGIN_PASSWORD_MAX_LENGTH` | 256  | max password length, in characters |
+| `LOGIN_BODY_LIMIT`          | 4096 | max `/login` request body, in bytes |
+
 ## Running
 
 ### With Docker Compose (production)
