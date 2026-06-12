@@ -80,10 +80,14 @@ ENTRYPOINT ["node", "build/main.js"]
 FROM node:24-bookworm-slim AS fe-build
 ARG FE_PACKAGE
 ARG FE_DIST_DIR
+# Asset/router base
+ARG VITE_BASE_PATH=/
+# API base
+ARG VITE_API_URL=/api
 WORKDIR /app
 COPY packages/${FE_PACKAGE} .
 RUN npm ci
-RUN npm run build
+RUN VITE_BASE_PATH="$VITE_BASE_PATH" VITE_API_URL="$VITE_API_URL" npm run build
 RUN mv ${FE_DIST_DIR} /fe-dist
 
 FROM nginx:1.27-alpine AS gateway

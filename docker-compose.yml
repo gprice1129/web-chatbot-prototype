@@ -83,6 +83,8 @@ services:
       args:
         FE_PACKAGE: aim_hi_fe
         FE_DIST_DIR: dist
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/}
+        VITE_API_URL: ${VITE_API_URL:-/api}
     restart: unless-stopped
     depends_on:
       app:
