@@ -8,7 +8,8 @@ export {
   FileStatus,
   Project,
   Session,
-  User
+  User,
+  resolve_secret
 }
 
 import assert from "node:assert";
