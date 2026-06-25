@@ -18,6 +18,7 @@
     "chat-get": "node build/chat-get/chat-get.js",
     "chat-messages-get": "node build/chat-messages-get/chat-messages-get.js",
     "chat-update": "node build/chat-update/chat-update.js",
+    "chat-delete": "node build/chat-delete/chat-delete.js",
     "files-info": "node build/files-info/files-info.js",
     "grant-review": "node build/grant-review/grant-review.js",
     "grant-review-full": "node build/grant-review-full/grant-review-full.js",

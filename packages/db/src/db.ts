@@ -368,6 +368,13 @@ class DatabaseService {
     return result.rows[0];
   }
 
+  async delete_chat(id: string, user_id: string): Promise<boolean> {
+    const result = await this._pool.query(
+      "DELETE FROM chats WHERE id = $1 AND user_id = $2",
+      [id, user_id]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async get_projects_by_user(user_id: string): Promise<Project[]> {
     const result = await this._pool.query(
       "SELECT * FROM projects WHERE user_id = $1 ORDER BY created_at DESC",
