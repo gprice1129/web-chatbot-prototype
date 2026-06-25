@@ -463,16 +463,75 @@ class DatabaseService {
     await this._pool.end();
   }
 
-  async create_user_if_absent(
+  async create_user(
     username: string,
     email: string,
-    password_hash: string
-  ): Promise<void> {
-    await this._pool.query(
+    password_hash: string,
+    // Self-registered accounts start unverified; only trusted callers (e.g. the
+    // test-auth bootstrap) pass true.
+    email_verified: boolean = false
+  ): Promise<User | null> {
+    const result = await this._pool.query(
       `INSERT INTO users (username, email, email_verified, password_hash)
-       VALUES ($1, $2, true, $3)
-       ON CONFLICT DO NOTHING`,
-      [username, email, password_hash]);
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT DO NOTHING
+       RETURNING id, password_hash`,
+      [username, email, email_verified, password_hash]);
+    assert(result.rows.length <= 1);
+    if (result.rows.length === 0) return null;
+    return result.rows[0];
+  }
+
+  async is_email_registered(email: string): Promise<boolean> {
+    const result = await this._pool.query(
+      `SELECT 1 FROM users WHERE lower(email) = lower($1) AND account_enabled`,
+      [email]);
+    return result.rows.length > 0;
+  }
+
+  // Mirrors the lower(username) unique index, which spans ALL rows regardless
+  // of account_enabled — so this answers "would a create_user collide on the
+  // username?", unlike is_email_registered which is scoped to live accounts.
+  async is_username_taken(username: string): Promise<boolean> {
+    const result = await this._pool.query(
+      `SELECT 1 FROM users WHERE lower(username) = lower($1)`,
+      [username]);
+    return result.rows.length > 0;
+  }
+
+  async set_password_reset_token(
+    email: string,
+    token_hash: string,
+    expires_at: Date
+  ): Promise<boolean> {
+    const result = await this._pool.query(
+      `UPDATE users
+          SET password_reset_token = $2,
+              password_reset_expires_at = $3
+        WHERE lower(email) = lower($1)
+          AND account_enabled`,
+      [email, token_hash, expires_at]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async reset_password(
+    token_hash: string,
+    password_hash: string
+  ): Promise<string | null> {
+    const result = await this._pool.query(
+      `UPDATE users
+          SET password_hash = $2,
+              password_changed_at = now(),
+              password_reset_token = NULL,
+              password_reset_expires_at = NULL
+        WHERE password_reset_token = $1
+          AND password_reset_expires_at > now()
+          AND account_enabled
+        RETURNING id`,
+      [token_hash, password_hash]);
+    assert(result.rows.length <= 1);
+    if (result.rows.length === 0) return null;
+    return result.rows[0].id;
   }
 }
 

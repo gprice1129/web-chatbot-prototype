@@ -44,6 +44,14 @@ APP_DB_NAME=chatbot
 FILES_BASE_PATH=/var/lib/aim_hi/uploads
 APP_ENV=production
 SERVER_NAME=your.domain.com
+
+# Account validation limits (optional — docker-compose supplies these
+# defaults; set them here only to override)
+ACCOUNT_USERNAME_MIN_LENGTH=3
+ACCOUNT_USERNAME_MAX_LENGTH=255
+ACCOUNT_EMAIL_MAX_LENGTH=255
+ACCOUNT_PASSWORD_MIN_LENGTH=8
+ACCOUNT_PASSWORD_MAX_LENGTH=128
 ```
 
 #### Secrets
@@ -91,8 +99,9 @@ The limits are configurable via env vars, with the default values set in
 
 | env var | default | meaning |
 | ------- | ------- | ------- |
-| `RATE_LIMIT_LOGIN_MAX` / `RATE_LIMIT_LOGIN_WINDOW`               | 5 / 1 minute  | login attempts per IP |
-| `RATE_LIMIT_ALLY_MAX` / `RATE_LIMIT_ALLY_WINDOW`                 | 30 / 1 minute | Ally calls per user |
+| `RATE_LIMIT_LOGIN_MAX` / `RATE_LIMIT_LOGIN_WINDOW`               | 5 / 1 minute   | login attempts per IP |
+| `RATE_LIMIT_ACCOUNT_MAX` / `RATE_LIMIT_ACCOUNT_WINDOW`           | 5 / 15 minutes | account create + recovery per IP |
+| `RATE_LIMIT_ALLY_MAX` / `RATE_LIMIT_ALLY_WINDOW`                 | 30 / 1 minute  | Ally calls per user |
 | `RATE_LIMIT_GRANT_REVIEW_MAX` / `RATE_LIMIT_GRANT_REVIEW_WINDOW` | 10 / 1 hour   | grant reviews per user |
 
 `MAX` is a positive integer. `WINDOW` accepts a duration string (`30s`,
