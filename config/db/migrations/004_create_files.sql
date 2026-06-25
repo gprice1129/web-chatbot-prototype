@@ -124,6 +124,7 @@ comment on function set_files_updated_at is 'keeps files.updated_at current on e
 -- 3. record this migration
 -------------------------------------------------------------------------------
 insert into schema_migrations (version, name)
-values (4, '004_create_files');
+values (4, '004_create_files')
+on conflict (version) do nothing;
 
 commit;

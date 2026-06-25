@@ -81,6 +81,7 @@ comment on function purge_expired_sessions is 'deletes expired sessions and revo
 -- 3. record this migration
 -------------------------------------------------------------------------------
 insert into schema_migrations (version, name)
-values (3, '003_create_sessions');
+values (3, '003_create_sessions')
+on conflict (version) do nothing;
 
 commit;

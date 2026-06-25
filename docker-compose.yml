@@ -35,6 +35,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     expose:
       - 3000
     healthcheck:
@@ -116,11 +118,31 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./config/db/bootstrap.sh:/docker-entrypoint-initdb.d/10_bootstrap.sh:ro
-      - ./config/db/seed.sh:/docker-entrypoint-initdb.d/20_seed.sh:ro
-      - ./config/db/migrations:/migrations:ro
-      - ./config/db/seed:/seed:ro
     mem_limit: 768m
     cpus: "1.0"
+
+  # One-shot migration runner for applying SQL migrations
+  migrate:
+    image: postgres:17-alpine
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: ${APP_DB_USER}
+      PGPASSWORD_FILE: /run/secrets/app_db_password
+      PGDATABASE: ${APP_DB_NAME}
+    secrets:
+      - app_db_password
+    entrypoint: ["/bin/bash", "/migrate.sh"]
+    volumes:
+      - ./config/db/migrate.sh:/migrate.sh:ro
+      - ./config/db/migrations:/migrations:ro
+      - ./config/db/seed:/seed:ro
+    mem_limit: 256m
+    cpus: "0.5"
 
 volumes:
   postgres_data:

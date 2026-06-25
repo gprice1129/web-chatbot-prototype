@@ -70,6 +70,7 @@ comment on function set_applications_updated_at is 'keeps applications.updated_a
 -- 3. record this migration
 -------------------------------------------------------------------------------
 insert into schema_migrations (version, name)
-values (5, '005_create_applications');
+values (5, '005_create_applications')
+on conflict (version) do nothing;
 
 commit;

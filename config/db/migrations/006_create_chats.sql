@@ -157,6 +157,7 @@ comment on function set_chats_updated_at is 'keeps chats.updated_at current on e
 -- 6. record this migration
 -------------------------------------------------------------------------------
 insert into schema_migrations (version, name)
-values (6, '006_create_chats');
+values (6, '006_create_chats')
+on conflict (version) do nothing;
 
 commit;

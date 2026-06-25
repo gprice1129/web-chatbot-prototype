@@ -117,6 +117,7 @@ comment on function set_users_updated_at is 'keeps users.updated_at current on e
 -- 3. record this migration
 -------------------------------------------------------------------------------
 insert into schema_migrations (version, name)
-values (2, '002_create_users');
+values (2, '002_create_users')
+on conflict (version) do nothing;
 
 commit;

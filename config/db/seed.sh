@@ -8,9 +8,10 @@ set -euo pipefail
 # already-seeded database is a no-op (use ON CONFLICT DO NOTHING or
 # WHERE NOT EXISTS).
 #
-# Mounted into postgres' /docker-entrypoint-initdb.d/ as a numbered
-# step that runs after bootstrap.sh. Can also be invoked manually
-# against a running database with APP_DB_USER and APP_DB_NAME set.
+# Seeds are applied automatically on every deploy by config/db/migrate.sh
+# (the `migrate` service), after migrations. This standalone script can also
+# be invoked manually against a running database with APP_DB_USER and
+# APP_DB_NAME set.
 
 for f in /seed/*.sql; do
     [ -e "$f" ] || continue

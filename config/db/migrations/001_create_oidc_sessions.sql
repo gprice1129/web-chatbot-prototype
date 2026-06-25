@@ -94,6 +94,7 @@ COMMENT ON FUNCTION purge_expired_oidc_sessions IS 'Deletes expired OIDC session
 INSERT INTO schema_migrations (version, name)
 -- The migration runner computes a SHA-256 checksum of this file and
 -- updates the row after the migration is applied successfully.
-VALUES (1, '001_create_oidc_sessions');
+VALUES (1, '001_create_oidc_sessions')
+ON CONFLICT (version) DO NOTHING;
 
 COMMIT;

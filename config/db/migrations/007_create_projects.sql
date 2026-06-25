@@ -97,6 +97,7 @@ comment on function set_projects_updated_at is 'keeps projects.updated_at curren
 -- 4. record this migration
 -------------------------------------------------------------------------------
 insert into schema_migrations (version, name)
-values (7, '007_create_projects');
+values (7, '007_create_projects')
+on conflict (version) do nothing;
 
 commit;
