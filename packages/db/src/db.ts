@@ -79,6 +79,9 @@ interface Project {
   id: string;
   user_id: string;
   name: string;
+  description: string | null;
+  instructions: string | null;
+  memory_enabled: boolean;
   metadata: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
@@ -116,6 +119,7 @@ interface File {
   updated_at: Date;
 }
 
+// TODO:[db] Split up into multiple targeted DB services
 class DatabaseService {
   private _pool: pg.Pool;
   constructor() {
@@ -398,14 +402,31 @@ class DatabaseService {
     return result.rows[0];
   }
 
-  async update_project_name(
-    id: string, user_id: string, name: string
+  async update_project(
+    id: string,
+    user_id: string,
+    fields: {
+      name?: string;
+      description?: string | null;
+      instructions?: string | null;
+      memory_enabled?: boolean;
+    },
   ): Promise<Project | null> {
     const result = await this._pool.query(
-      `UPDATE projects SET name = $3
+      `UPDATE projects SET
+         name           = COALESCE($3, name),
+         description    = COALESCE($4, description),
+         instructions   = COALESCE($5, instructions),
+         memory_enabled = COALESCE($6, memory_enabled)
         WHERE id = $1 AND user_id = $2
         RETURNING *`,
-      [id, user_id, name]);
+      [
+        id, user_id,
+        fields.name ?? null,
+        fields.description ?? null,
+        fields.instructions ?? null,
+        fields.memory_enabled ?? null,
+      ]);
     assert(result.rows.length <= 1);
     if (result.rows.length === 0) return null;
     return result.rows[0];
@@ -463,6 +484,46 @@ class DatabaseService {
           AND p.id = $1 AND p.user_id = $3
           AND pc.chat_id = $2`,
       [project_id, chat_id, user_id]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async get_project_files(
+    project_id: string, user_id: string
+  ): Promise<File[]> {
+    const result = await this._pool.query(
+      `SELECT f.* FROM files f
+         JOIN project_files pf ON pf.file_id = f.id
+         JOIN projects p ON p.id = pf.project_id
+        WHERE pf.project_id = $1 AND p.user_id = $2 AND f.user_id = $2
+        ORDER BY f.created_at DESC`,
+      [project_id, user_id]);
+    return result.rows;
+  }
+
+  async add_file_to_project(
+    project_id: string, file_id: string, user_id: string
+  ): Promise<boolean> {
+    const result = await this._pool.query(
+      `INSERT INTO project_files (project_id, file_id)
+       SELECT p.id, f.id
+         FROM projects p, files f
+        WHERE p.id = $1 AND p.user_id = $3
+          AND f.id = $2 AND f.user_id = $3
+       ON CONFLICT DO NOTHING`,
+      [project_id, file_id, user_id]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async remove_file_from_project(
+    project_id: string, file_id: string, user_id: string
+  ): Promise<boolean> {
+    const result = await this._pool.query(
+      `DELETE FROM project_files pf
+         USING projects p
+        WHERE pf.project_id = p.id
+          AND p.id = $1 AND p.user_id = $3
+          AND pf.file_id = $2`,
+      [project_id, file_id, user_id]);
     return (result.rowCount ?? 0) > 0;
   }
 
