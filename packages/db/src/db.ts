@@ -455,6 +455,21 @@ class DatabaseService {
     return result.rows;
   }
 
+  async get_project_by_chat_id(
+    chat_id: string, user_id: string
+  ): Promise<Project | null> {
+    // Assumes chats are scoped to a single project.
+    const result = await this._pool.query(
+      `SELECT p.* FROM projects p
+         JOIN project_chats pc ON pc.project_id = p.id
+         JOIN chats c ON c.id = pc.chat_id
+        WHERE pc.chat_id = $1 AND p.user_id = $2 AND c.user_id = $2`,
+      [chat_id, user_id]);
+    assert(result.rows.length <= 1);
+    if (result.rows.length === 0) return null;
+    return result.rows[0];
+  }
+
   async add_chat_to_project(
     project_id: string, chat_id: string, user_id: string
   ): Promise<boolean> {

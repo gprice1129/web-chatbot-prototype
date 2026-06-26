@@ -26,10 +26,19 @@ decision.
   Exported from `chatlib.ts`. Unit-tested with in-memory fake ports.
   - Decided: project `instructions` are **appended after** the base system prompt.
     (Migration 008's "prepended" wording is a doc error — see misc fix below.)
-- **2b — TODO.** Webserver adapters implementing the ports over `db_service` /
-  `file_service` with `user_id` scoping baked in; rewire `make_ally` + `route/ally.ts`
-  to pass adapters instead of a raw history array. May ship first with raw-turn (or
-  trivial-summary) project memory and swap in the real summarizer in step 3.
+- **2b — DONE.** Webserver adapters `ChatHistorySource` / `ChatProjectContextSource`
+  (in `src/context/`, `#context/*` alias) implement the ports over `db_service` with
+  `user_id` scoping baked in; `db.get_project_by_chat_id` added. `Ally.respond` now takes
+  the ports and pulls via `assemble()`; `route/ally.ts` constructs and passes the adapters.
+  Project `instructions` now flow end-to-end (appended to Ally's system prompt). Cross-chat
+  memory is stubbed (`memory: []`) pending the step-3 summarizer.
+  - Decided: the assembler is **constructed by the bot, not injected**. Inject only what
+    needs host-only info/capability (endpoint = secrets, ports = DB); the budget is intrinsic
+    to the bot, so the factory builds its own `ContextAssembler`. Minimal future seam if a
+    deployment needs to override caps: an optional `make_ally(endpoint, budget?)` param.
+  - Tested: both adapters (`test/unit/context/`, with a shared `test/mock/db.ts` fake). The
+    assembler is covered by the chatbot's `context.test.ts`. Still untested: `Ally.respond`
+    wiring itself (thin glue over the already-tested `assemble()`; would need a fake model).
 
 ### Step 3 — sophisticated strategy
 - Unified, **token-aware** budget across all replayed context (replaces the char caps),
@@ -75,6 +84,11 @@ project. A chat belongs to a single project (logical; not enforced in schema).
 
 ## Misc
 
+- [ ] Enforce single-project-per-chat in the DB. `project_chats` is physically
+      many-to-many, but the code now assumes a chat belongs to at most one project
+      (`get_project_by_chat_id` asserts `<= 1`). Make it a real invariant at the model
+      level — e.g. a `UNIQUE (chat_id)` constraint on `project_chats` (migration) — so the
+      assertion can't be violated by data.
 - [ ] Migration `008_extend_projects` comment: `instructions` is **appended**, not
       "prepended" — fix the column comment/doc to match the decided behavior.
 - [ ] `grant_reviewer.ts` `set_context`: validate content (`TODO:[grant reviewer]`).
