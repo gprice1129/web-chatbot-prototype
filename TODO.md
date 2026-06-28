@@ -82,9 +82,10 @@ project. A chat belongs to a single project (logical; not enforced in schema).
   block as context, not examples.
 
 ### Step-3 sub-items
-- [ ] Schema: per-*chat* memory-summary storage + staleness tracking — e.g.
-      `chats.memory_summary` + `memory_summary_updated_at`, or a derived table keyed by
-      `chat_id` (migration). Per-chat, not per-project (see decision above).
+- [ ] Schema: per-*chat* memory storage + staleness tracking — a derived `chat_memories` table keyed
+      by `(chat_id, kind)` with a `source_through` watermark (migration), **not** columns on `chats`
+      (own lifecycle; keeps the blob off the hot row; additive room for typed/embedded memories).
+      Per-chat, not per-project (see decision above).
 - [ ] Summarizer job: (re)generate a single chat's summary out of band with a cheap model.
 - [ ] Invalidation: a new message in a chat invalidates *that chat's* summary. (Chat
       added/removed from a project needs no invalidation — composition is per-request, so it
@@ -120,13 +121,15 @@ before that is safe:
 
 ## Misc
 
-- [ ] Enforce single-project-per-chat in the DB. `project_chats` is physically
+- [x] Enforce single-project-per-chat in the DB. `project_chats` is physically
       many-to-many, but the code now assumes a chat belongs to at most one project
       (`get_project_by_chat_id` asserts `<= 1`). Make it a real invariant at the model
       level — e.g. a `UNIQUE (chat_id)` constraint on `project_chats` (migration) — so the
-      assertion can't be violated by data.
-- [ ] Migration `008_extend_projects` comment: `instructions` is **appended**, not
-      "prepended" — fix the column comment/doc to match the decided behavior.
+      assertion can't be violated by data. (Phase B: migration `009`; a cross-project add is
+      now rejected with `409`.)
+- [x] Migration `008_extend_projects` comment: `instructions` is **appended**, not
+      "prepended" — fix the column comment/doc to match the decided behavior. (Phase B:
+      corrected append-only in migration `009`.)
 - [ ] `grant_reviewer.ts` `set_context`: validate content (`TODO:[grant reviewer]`).
 - [ ] Test type-checking: `test/` is outside the build `include`, so tsc doesn't type-check
       tests (they run via Node type-stripping). Add a test tsconfig if compile-time checking

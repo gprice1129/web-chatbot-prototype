@@ -473,16 +473,13 @@ class DatabaseService {
   async add_chat_to_project(
     project_id: string, chat_id: string, user_id: string
   ): Promise<boolean> {
-    // Guarded insert: the link lands only if BOTH the project and the chat
-    // belong to user_id. ON CONFLICT keeps re-adding idempotent (an existing
-    // link yields rowCount 0).
     const result = await this._pool.query(
       `INSERT INTO project_chats (project_id, chat_id)
        SELECT p.id, c.id
          FROM projects p, chats c
         WHERE p.id = $1 AND p.user_id = $3
           AND c.id = $2 AND c.user_id = $3
-       ON CONFLICT DO NOTHING`,
+       ON CONFLICT (project_id, chat_id) DO NOTHING`,
       [project_id, chat_id, user_id]);
     return (result.rowCount ?? 0) > 0;
   }
