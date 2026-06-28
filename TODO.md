@@ -113,10 +113,10 @@ before that is safe:
   `max_instructions_chars`).
 
 ### Tasks
-- [ ] `assemble()`: wrap `project.instructions` in the precedence frame instead of the raw
+- [x] `assemble()`: wrap `project.instructions` in the precedence frame instead of the raw
       `\n\n` append (`core/context.ts`).
-- [ ] `assemble()`: clamp `instructions` to the budget before composing it in.
-- [ ] Tests: precedence frame is present; oversized instructions are truncated.
+- [x] `assemble()`: clamp `instructions` to the budget before composing it in.
+- [x] Tests: precedence frame is present; oversized instructions are truncated.
 
 ## Misc
 
