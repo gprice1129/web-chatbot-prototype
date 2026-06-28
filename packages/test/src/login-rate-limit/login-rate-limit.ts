@@ -163,8 +163,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   const result = await login_rate_limit({
     base_url,
-    username: process.env.USERNAME ?? "testuser",
-    password: process.env.PASSWORD ?? "irrelevant",
+    username: process.env.TEST_USERNAME ?? "testuser",
+    password: process.env.TEST_PASSWORD ?? "irrelevant",
     max_attempts,
     check_reset,
   });

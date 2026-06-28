@@ -31,6 +31,22 @@ interface FileUploadResult {
   status: string;
 }
 
+// Declare the multipart part's Content-Type from the file extension. The server
+// sniffs binary types (pdf/docx) from the bytes, but cannot sniff plain text, so
+// a .txt/.md upload must declare text/plain or text/markdown or the endpoint
+// rejects it (415). Unknown extensions declare nothing and rely on sniffing.
+function content_type_for(file_path: string): string {
+  switch (path.extname(file_path).toLowerCase()) {
+    case ".txt": return "text/plain";
+    case ".md":
+    case ".markdown": return "text/markdown";
+    case ".pdf": return "application/pdf";
+    case ".docx":
+      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    default: return "";
+  }
+}
+
 export async function file_upload(
     opts: FileUploadOptions): Promise<FileUploadResult> {
   // 1. Login. The response sets a signed `session` cookie that gated routes
@@ -60,7 +76,8 @@ export async function file_upload(
   //    not own returns 404 before the upload runs.
   const buf = await fs.promises.readFile(opts.file_path);
   const form = new FormData();
-  form.set("file", new Blob([new Uint8Array(buf)]),
+  form.set("file",
+    new Blob([new Uint8Array(buf)], { type: content_type_for(opts.file_path) }),
     path.basename(opts.file_path));
   for (const [name, value] of Object.entries(opts.metadata ?? {})) {
     form.set(name, value);
@@ -94,8 +111,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     base_url: process.argv[4] ?? "http://localhost:8080",
     chat_id,
     file_path,
-    username: process.env.USERNAME ?? "testuser",
-    password: process.env.PASSWORD ?? "irrelevant",
+    username: process.env.TEST_USERNAME ?? "testuser",
+    password: process.env.TEST_PASSWORD ?? "irrelevant",
     metadata: { source: "file-upload-cli" },
   });
   console.log(JSON.stringify(result, null, 2));

@@ -25,8 +25,8 @@ import { chat_create } from "../chat-create/chat-create.js";
 import { chat_get } from "../chat-get/chat-get.js";
 
 export async function project_round_trip(base_url: string): Promise<void> {
-  const username = process.env.USERNAME ?? "testuser";
-  const password = process.env.PASSWORD ?? "irrelevant";
+  const username = process.env.TEST_USERNAME ?? "testuser";
+  const password = process.env.TEST_PASSWORD ?? "irrelevant";
   const auth = { base_url, username, password };
 
   // 1. Create a project and a chat to put in it.

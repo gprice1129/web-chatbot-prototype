@@ -28,8 +28,8 @@ npm run file-round-trip -- <chat-id> <path-to-file> [base-url]
 
 | Var                 | Default                | Notes                                                            |
 | ------------------- | ---------------------- | ---------------------------------------------------------------- |
-| `USERNAME`          | `testuser`             | Seeded automatically when the server runs with `APP_ENV=test`.   |
-| `PASSWORD`          | `irrelevant`           | The test auth service ignores the password for the seeded user. |
+| `TEST_USERNAME`          | `testuser`             | Seeded automatically when the server runs with `APP_ENV=test`.   |
+| `TEST_PASSWORD`          | `irrelevant`           | The test auth service ignores the password for the seeded user. |
 | `OUTPUT`            | `./<server-filename>`  | Target path. If it points to an existing directory, the server-supplied filename is appended; otherwise the value is used as the literal output path. |
 | `POLL_INTERVAL_MS`  | `1000`                 | Delay between status polls. |
 | `POLL_TIMEOUT_MS`   | `60000`                | Hard cap on total time spent polling. Exceeding it raises a timeout error with the last observed status. |

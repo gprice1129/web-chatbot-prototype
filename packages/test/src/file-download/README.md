@@ -27,6 +27,6 @@ npm run file-download -- <chat-id> <file-id> [base-url]
 
 | Var        | Default                | Notes                                                            |
 | ---------- | ---------------------- | ---------------------------------------------------------------- |
-| `USERNAME` | `testuser`             | Seeded automatically when the server runs with `APP_ENV=test`.   |
-| `PASSWORD` | `irrelevant`           | The test auth service ignores the password for the seeded user. |
+| `TEST_USERNAME` | `testuser`             | Seeded automatically when the server runs with `APP_ENV=test`.   |
+| `TEST_PASSWORD` | `irrelevant`           | The test auth service ignores the password for the seeded user. |
 | `OUTPUT`   | `./<server-filename>`  | Target path. If it points to an existing directory, the server-supplied filename is appended; otherwise the value is used as the literal output path. |
