@@ -415,16 +415,16 @@ class DatabaseService {
     const result = await this._pool.query(
       `UPDATE projects SET
          name           = COALESCE($3, name),
-         description    = COALESCE($4, description),
-         instructions   = COALESCE($5, instructions),
-         memory_enabled = COALESCE($6, memory_enabled)
+         description    = CASE WHEN $4::boolean THEN $5::text ELSE description  END,
+         instructions   = CASE WHEN $6::boolean THEN $7::text ELSE instructions END,
+         memory_enabled = COALESCE($8, memory_enabled)
         WHERE id = $1 AND user_id = $2
         RETURNING *`,
       [
         id, user_id,
         fields.name ?? null,
-        fields.description ?? null,
-        fields.instructions ?? null,
+        fields.description !== undefined, fields.description ?? null,
+        fields.instructions !== undefined, fields.instructions ?? null,
         fields.memory_enabled ?? null,
       ]);
     assert(result.rows.length <= 1);
