@@ -94,8 +94,9 @@ project. A chat belongs to a single project (logical; not enforced in schema).
       into the single framed `ProjectContext.memory` block, excluding the active chat.
 - [ ] Prompt caching: mark the stable prefix (system + leading memory turn) with
       `cache_control` in the model layer (currently unset in `model/anthropic.ts`).
-- [ ] Unified token-aware budget (supersedes char caps); priority between project memory and
-      recent history.
+- [x] Unified token-aware budget (supersedes char caps); priority between project memory and
+      recent history. (Phase C: `core/tokens.ts` estimator + `max_total_context_tokens`; live turn
+      → recent history → project memory remainder.)
 
 ## Decision: project instructions in the system prompt (`instructions`)
 
