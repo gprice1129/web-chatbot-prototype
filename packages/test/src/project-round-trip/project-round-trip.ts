@@ -2,7 +2,7 @@
 // `testuser` and asserts the expected state at each step:
 //
 //   create project -> create chat -> add chat to project -> list membership
-//   -> remove chat -> rename project -> delete project
+//   -> remove chat -> rename project -> toggle memory_enabled -> delete project
 //
 // It also verifies the key junction behaviour: deleting a project leaves its
 // member chat intact (only the project_chats link rows cascade). Reuses the
@@ -62,7 +62,25 @@ export async function project_round_trip(base_url: string): Promise<void> {
     listed.projects.some((p) => p.id === project.id && p.name === "Round-trip renamed"),
     "renamed project should appear in the listing");
 
-  // 6. Re-add the chat, then delete the project. The project should disappear
+  // 6. Toggle memory_enabled. Projects start with it off; enabling must
+  //    persist (visible in the listing, not just the PATCH echo) and a later
+  //    update that omits the flag must leave it untouched.
+  assert.strictEqual(renamed.memory_enabled, false,
+    "a new project should start with memory disabled");
+  const enabled = await project_update(
+    { ...auth, project_id: project.id, memory_enabled: true });
+  assert.strictEqual(enabled.memory_enabled, true);
+  const listed_enabled = await project_get(auth);
+  assert.ok(
+    listed_enabled.projects.some(
+      (p) => p.id === project.id && p.memory_enabled),
+    "enabled memory flag should round-trip through the listing");
+  const renamed_again = await project_update(
+    { ...auth, project_id: project.id, name: "Round-trip renamed twice" });
+  assert.strictEqual(renamed_again.memory_enabled, true,
+    "an update that omits memory_enabled should not change it");
+
+  // 7. Re-add the chat, then delete the project. The project should disappear
   //    from the listing, but the chat that was a member must survive (only the
   //    junction rows cascade).
   await project_chat_add({ ...auth, project_id: project.id, chat_id: chat.id });

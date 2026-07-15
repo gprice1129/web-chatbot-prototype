@@ -22,6 +22,7 @@ interface ProjectGetOptions {
 interface ProjectSummary {
   id: string;
   name: string;
+  memory_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -50,8 +51,9 @@ export async function project_get(opts: ProjectGetOptions): Promise<ProjectGetRe
     .find((c) => c.startsWith("session="));
   if (!session_cookie) throw new Error("Login response had no session cookie");
 
-  // 2. List projects. The route returns `{ projects: [{ id, name, created_at,
-  //    updated_at }, ...] }` for projects owned by the authenticated user.
+  // 2. List projects. The route returns `{ projects: [{ id, name,
+  //    memory_enabled, created_at, updated_at }, ...] }` for projects owned by
+  //    the authenticated user.
   const get_res = await fetch(`${opts.base_url}/api/projects`, {
     method: "GET",
     headers: { Cookie: session_cookie },
