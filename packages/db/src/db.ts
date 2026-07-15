@@ -1,9 +1,11 @@
 export {
   Application,
   Chat,
+  ChatMemory,
   ChatMessage,
   ChatMessageRole,
   ChatMessageWithFileIds,
+  ChatTranscriptTurn,
   File,
   FileStatus,
   Project,
@@ -96,11 +98,25 @@ interface ChatMessage {
   created_at: Date;
 }
 
-// Messages carry only the ids of attached files; clients hydrate to full File
-// rows through get_files_by_ids (the POST /chats/:chat_id/files/info endpoint)
-// so status transitions (queued -> parsed) reflect without snapshotting.
 interface ChatMessageWithFileIds extends ChatMessage {
   file_ids: string[];
+}
+
+interface ChatTranscriptTurn {
+  role: ChatMessageRole;
+  content: string;
+  created_at: Date;
+}
+
+interface ChatMemory {
+  id: string;
+  chat_id: string;
+  user_id: string;
+  kind: string;
+  content: string;
+  source_through: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 interface File {
@@ -300,6 +316,21 @@ class DatabaseService {
             WHERE cmf.message_id = cm.id
          ) mf ON true
         WHERE cm.chat_id = $1 AND c.user_id = $2
+        ORDER BY cm.created_at ASC`,
+      [chat_id, user_id]);
+    return result.rows;
+  }
+
+  async get_chat_transcript(
+    chat_id: string, user_id: string
+  ): Promise<ChatTranscriptTurn[]> {
+    // Conversational transcript only. Omits file ids.
+    const result = await this._pool.query(
+      `SELECT cm.role, cm.content, cm.created_at
+         FROM chat_messages cm
+         JOIN chats c ON c.id = cm.chat_id
+        WHERE cm.chat_id = $1 AND c.user_id = $2
+          AND cm.role IN ('user', 'assistant')
         ORDER BY cm.created_at ASC`,
       [chat_id, user_id]);
     return result.rows;
@@ -537,6 +568,70 @@ class DatabaseService {
           AND pf.file_id = $2`,
       [project_id, file_id, user_id]);
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // --- chat memories ---------------------------------------------------------
+  async upsert_chat_memory(
+    chat_id: string,
+    user_id: string,
+    content: string,
+    source_through: Date,
+    kind: string = "summary",
+  ): Promise<void> {
+    await this._pool.query(
+      `INSERT INTO chat_memories (chat_id, user_id, kind, content, source_through)
+       SELECT $1, $2, $5, $3, $4
+        WHERE EXISTS (SELECT 1 FROM chats WHERE id = $1 AND user_id = $2)
+       ON CONFLICT (chat_id, kind) DO UPDATE SET
+         content        = EXCLUDED.content,
+         source_through = EXCLUDED.source_through,
+         updated_at     = now()
+        WHERE chat_memories.source_through <= EXCLUDED.source_through`,
+      [chat_id, user_id, content, source_through, kind]);
+  }
+
+  async get_stale_summary_chats(
+    limit: number
+  ): Promise<{ chat_id: string; user_id: string }[]> {
+    const result = await this._pool.query(
+      `SELECT c.id AS chat_id, c.user_id
+         FROM chats c
+         JOIN LATERAL (
+           SELECT max(cm.created_at) AS last_message_at
+             FROM chat_messages cm
+            WHERE cm.chat_id = c.id
+              AND cm.role IN ('user', 'assistant')
+         ) m ON m.last_message_at IS NOT NULL
+         LEFT JOIN chat_memories mem
+           ON mem.chat_id = c.id AND mem.kind = 'summary'
+        WHERE mem.chat_id IS NULL
+           OR mem.source_through < date_trunc('milliseconds', m.last_message_at)
+        ORDER BY m.last_message_at ASC
+        LIMIT $1`,
+      [limit]);
+    return result.rows;
+  }
+
+  // The summaries of the other chats in the active chat's project.
+  async get_sibling_summaries(
+    chat_id: string, user_id: string
+  ): Promise<{ chat_id: string; title: string; summary: string }[]> {
+    const result = await this._pool.query(
+      `SELECT sib.id AS chat_id, sib.title, mem.content AS summary
+         FROM project_chats active_pc
+         JOIN projects p
+           ON p.id = active_pc.project_id
+          AND p.user_id = $2
+          AND p.memory_enabled = true
+         JOIN project_chats sib_pc ON sib_pc.project_id = p.id
+         JOIN chats sib ON sib.id = sib_pc.chat_id AND sib.user_id = $2
+         JOIN chat_memories mem
+           ON mem.chat_id = sib.id AND mem.kind = 'summary' AND mem.user_id = $2
+        WHERE active_pc.chat_id = $1
+          AND sib.id <> $1
+        ORDER BY mem.source_through DESC`,
+      [chat_id, user_id]);
+    return result.rows;
   }
 
   async close(): Promise<void> {

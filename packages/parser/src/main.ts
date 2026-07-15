@@ -3,7 +3,7 @@ import { buffer } from "node:stream/consumers";
 import DatabaseService, { FileStatus } from "db";
 import {
   type PgBoss,
-  run_PgBoss,
+  start_job_queue,
   register_parser,
   ParseFileJob,
 } from "job_queue";
@@ -12,7 +12,7 @@ import { parse_file } from "#lib/parser.js";
 
 async function main(): Promise<void> {
   const db = new DatabaseService();
-  const boss = await run_PgBoss();
+  const boss = await start_job_queue();
   const file_service = new LocalFileService({
     base_path: required_env("FILES_BASE_PATH"),
   });

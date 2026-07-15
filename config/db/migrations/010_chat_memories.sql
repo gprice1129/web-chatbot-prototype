@@ -30,8 +30,6 @@ create table chat_memories (
     unique (chat_id, kind)
 );
 
-create index chat_memories_chat_id_idx on chat_memories (chat_id);
-
 comment on table chat_memories is
     'Derived, cached memories about a chat. composeable into sibling chats';
 
