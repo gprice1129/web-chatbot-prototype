@@ -17,10 +17,10 @@ class ProjectDbService {
     return result.rows;
   }
 
-  async get_project_by_id(id: string, user_id: string): Promise<Project | null> {
+  async get_project_by_id(project_id: string, user_id: string): Promise<Project | null> {
     const result = await this._pool.query(
       "SELECT * FROM projects WHERE id = $1 AND user_id = $2",
-      [id, user_id]);
+      [project_id, user_id]);
     assert(result.rows.length <= 1);
     if (result.rows.length === 0) return null;
     return result.rows[0];
@@ -34,7 +34,7 @@ class ProjectDbService {
   }
 
   async update_project(
-    id: string,
+    project_id: string,
     user_id: string,
     fields: {
       name?: string;
@@ -46,13 +46,20 @@ class ProjectDbService {
     const result = await this._pool.query(
       `UPDATE projects SET
          name           = COALESCE($3, name),
-         description    = CASE WHEN $4::boolean THEN $5::text ELSE description  END,
-         instructions   = CASE WHEN $6::boolean THEN $7::text ELSE instructions END,
+         description    = CASE WHEN $4::boolean
+                               THEN $5::text
+                               ELSE description
+                          END,
+         instructions   = CASE WHEN $6::boolean
+                               THEN $7::text
+                               ELSE instructions
+                          END,
          memory_enabled = COALESCE($8, memory_enabled)
         WHERE id = $1 AND user_id = $2
         RETURNING *`,
       [
-        id, user_id,
+        project_id,
+        user_id,
         fields.name ?? null,
         fields.description !== undefined, fields.description ?? null,
         fields.instructions !== undefined, fields.instructions ?? null,
@@ -63,19 +70,16 @@ class ProjectDbService {
     return result.rows[0];
   }
 
-  async delete_project(id: string, user_id: string): Promise<boolean> {
+  async delete_project(project_id: string, user_id: string): Promise<boolean> {
     const result = await this._pool.query(
       "DELETE FROM projects WHERE id = $1 AND user_id = $2",
-      [id, user_id]);
+      [project_id, user_id]);
     return (result.rowCount ?? 0) > 0;
   }
 
   async get_chats_by_project(
     project_id: string, user_id: string
   ): Promise<Chat[]> {
-    // Joined through projects so the project ownership is re-checked here too
-    // (defense in depth alongside the project-validate hook), matching the
-    // user-scoped style of get_chat_messages_by_chat_id.
     const result = await this._pool.query(
       `SELECT c.* FROM chats c
          JOIN project_chats pc ON pc.chat_id = c.id
@@ -118,8 +122,6 @@ class ProjectDbService {
   async remove_chat_from_project(
     project_id: string, chat_id: string, user_id: string
   ): Promise<boolean> {
-    // Scoped by project ownership so a user can only edit their own projects'
-    // membership.
     const result = await this._pool.query(
       `DELETE FROM project_chats pc
          USING projects p

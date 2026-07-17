@@ -18,12 +18,12 @@ class MemoryDbService {
     await this._pool.query(
       `INSERT INTO chat_memories (chat_id, user_id, kind, content, source_through)
        SELECT $1, $2, $5, $3, $4
-        WHERE EXISTS (SELECT 1 FROM chats WHERE id = $1 AND user_id = $2)
+       WHERE EXISTS (SELECT 1 FROM chats WHERE id = $1 AND user_id = $2)
        ON CONFLICT (chat_id, kind) DO UPDATE SET
          content        = EXCLUDED.content,
          source_through = EXCLUDED.source_through,
          updated_at     = now()
-        WHERE chat_memories.source_through <= EXCLUDED.source_through`,
+       WHERE chat_memories.source_through <= EXCLUDED.source_through`,
       [chat_id, user_id, content, source_through, kind]);
   }
 
@@ -58,14 +58,16 @@ class MemoryDbService {
          FROM project_chats active_pc
          JOIN projects p
            ON p.id = active_pc.project_id
-          AND p.user_id = $2
-          AND p.memory_enabled = true
+              AND p.user_id = $2
+              AND p.memory_enabled = true
          JOIN project_chats sib_pc ON sib_pc.project_id = p.id
          JOIN chats sib ON sib.id = sib_pc.chat_id AND sib.user_id = $2
          JOIN chat_memories mem
-           ON mem.chat_id = sib.id AND mem.kind = 'summary' AND mem.user_id = $2
+           ON mem.chat_id = sib.id
+              AND mem.kind = 'summary'
+              AND mem.user_id = $2
         WHERE active_pc.chat_id = $1
-          AND sib.id <> $1
+              AND sib.id <> $1
         ORDER BY mem.source_through DESC`,
       [chat_id, user_id]);
     return result.rows;

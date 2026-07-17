@@ -16,10 +16,10 @@ class ChatDbService {
     this._pool = pool;
   }
 
-  async get_chat_by_id(id: string, user_id: string): Promise<Chat | null> {
+  async get_chat_by_id(chat_id: string, user_id: string): Promise<Chat | null> {
     const result = await this._pool.query(
       "SELECT * FROM chats WHERE id = $1 AND user_id = $2",
-      [id, user_id]);
+      [chat_id, user_id]);
     assert(result.rows.length <= 1);
     if (result.rows.length === 0) return null;
     return result.rows[0];
@@ -42,9 +42,6 @@ class ChatDbService {
   async get_chat_messages_by_chat_id(
     chat_id: string, user_id: string
   ): Promise<ChatMessageWithFileIds[]> {
-    // Attached file ids are aggregated in a LATERAL subquery so the result is
-    // one row per message (no fanout) and one round-trip (no N+1). array_agg
-    // returns NULL when there are no matches, hence the COALESCE to {}.
     const result = await this._pool.query(
       `SELECT cm.id, cm.chat_id, cm.role, cm.content, cm.metadata, cm.created_at,
               COALESCE(mf.file_ids, '{}'::uuid[]) AS file_ids
@@ -84,7 +81,7 @@ class ChatDbService {
     file_ids: string[] = [],
   ): Promise<ChatMessage> {
     // Single CTE so the message insert and any chat_message_files attachments
-    // land atomically. An empty file_ids array yields no attachment rows.
+    // land atomically.
     const result = await this._pool.query(
       `WITH msg AS (
          INSERT INTO chat_messages (chat_id, role, content, metadata)
@@ -104,22 +101,22 @@ class ChatDbService {
   }
 
   async update_chat_title(
-    id: string, user_id: string, title: string
+    chat_id: string, user_id: string, title: string
   ): Promise<Chat | null> {
     const result = await this._pool.query(
       `UPDATE chats SET title = $3
         WHERE id = $1 AND user_id = $2
         RETURNING *`,
-      [id, user_id, title]);
+      [chat_id, user_id, title]);
     assert(result.rows.length <= 1);
     if (result.rows.length === 0) return null;
     return result.rows[0];
   }
 
-  async delete_chat(id: string, user_id: string): Promise<boolean> {
+  async delete_chat(chat_id: string, user_id: string): Promise<boolean> {
     const result = await this._pool.query(
       "DELETE FROM chats WHERE id = $1 AND user_id = $2",
-      [id, user_id]);
+      [chat_id, user_id]);
     return (result.rowCount ?? 0) > 0;
   }
 }

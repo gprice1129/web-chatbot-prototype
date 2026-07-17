@@ -31,8 +31,7 @@ interface DbServices {
   close(): Promise<void>;
 }
 
-// All services share the one pool (pg.Pool opens no connections until first
-// use), so constructing the full set is free and close() ends the shared pool.
+// All services share the one pool
 function make_db_services(pool: pg.Pool = make_pool()): DbServices {
   return {
     user_db: new UserDbService(pool),

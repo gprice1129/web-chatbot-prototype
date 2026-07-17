@@ -11,7 +11,7 @@ class FileDbService {
   }
 
   async create_file_if_absent(
-    id: string,
+    file_id: string,
     user_id: string,
     chat_id: string,
     original_filename: string | null,
@@ -50,7 +50,7 @@ class FileDbService {
          ON CONFLICT DO NOTHING
        )
        SELECT * FROM combined`,
-      [id, user_id, original_filename, mime_type, size_bytes,
+      [file_id, user_id, original_filename, mime_type, size_bytes,
        checksum_sha256, storage_backend, storage_key, status, chat_id,
        metadata]);
     assert(result.rows.length === 1);
@@ -58,53 +58,46 @@ class FileDbService {
     return { file: file as File, created };
   }
 
-  async get_file_by_id(
-    id: string, chat_id: string, user_id: string
-  ): Promise<File | null> {
-    const result = await this._pool.query(
-      `SELECT f.* FROM files f
-         JOIN chat_files cf ON cf.file_id = f.id
-        WHERE f.id = $1 AND cf.chat_id = $2 AND f.user_id = $3`,
-      [id, chat_id, user_id]);
-    assert(result.rows.length <= 1);
-    if (result.rows.length === 0) return null;
-    return result.rows[0];
-  }
-
   async update_file_status(
-    id: string,
+    file_id: string,
     status: FileStatus,
     parse_error: string | null = null
   ): Promise<void> {
     await this._pool.query(
       "UPDATE files SET status = $2, parse_error = $3 WHERE id = $1",
-      [id, status, parse_error]);
+      [file_id, status, parse_error]);
   }
 
   async get_chat_files(chat_id: string, user_id: string): Promise<File[]> {
     const result = await this._pool.query(
-      `SELECT f.* FROM files f
-         JOIN chat_files cf ON cf.file_id = f.id
-        WHERE cf.chat_id = $1 AND f.user_id = $2
-        ORDER BY f.created_at DESC`,
+      `SELECT f.*
+       FROM files f
+       JOIN chat_files cf ON cf.file_id = f.id
+       WHERE cf.chat_id = $1 AND f.user_id = $2
+       ORDER BY f.created_at DESC`,
       [chat_id, user_id]);
     return result.rows;
   }
 
+  async get_file_by_id(
+    file_id: string, chat_id: string, user_id: string
+  ): Promise<File | null> {
+    const files = await this.get_files_by_ids([file_id], chat_id, user_id);
+    assert(files.length <= 1);
+    return files[0] ?? null;
+  }
+
   async get_files_by_ids(
-    ids: string[], chat_id: string, user_id: string
+    file_ids: string[], chat_id: string, user_id: string
   ): Promise<File[]> {
-    // Scoped to the chat (via chat_files) and the user, matching the
-    // existence semantics of get_file_by_id — ids the caller cannot see are
-    // silently omitted rather than 404'd, so a partial result is normal.
-    if (ids.length === 0) return [];
+    if (file_ids.length === 0) return [];
     const result = await this._pool.query(
       `SELECT f.* FROM files f
          JOIN chat_files cf ON cf.file_id = f.id
         WHERE f.id = ANY($1::uuid[])
           AND cf.chat_id = $2
           AND f.user_id = $3`,
-      [ids, chat_id, user_id]);
+      [file_ids, chat_id, user_id]);
     return result.rows;
   }
 }
