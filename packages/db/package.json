@@ -15,7 +15,9 @@
     "build"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "pretest": "tsc -b test && node test/build/setup_db.js",
+    "test": "node --test --test-concurrency=1 'test/build/**/*.test.js'"
   },
   "dependencies": {
     "@types/node": "^25.5.0",
