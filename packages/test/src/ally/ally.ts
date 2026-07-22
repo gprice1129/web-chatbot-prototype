@@ -91,8 +91,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(2);
   }
   const base_url = process.argv[4] ?? "http://localhost:8080";
-  const username = process.env.USERNAME ?? "testuser";
-  const password = process.env.PASSWORD ?? "irrelevant";
+  const username = process.env.TEST_USERNAME ?? "testuser";
+  const password = process.env.TEST_PASSWORD ?? "irrelevant";
 
   // A single explicit message overrides the default scripted conversation.
   const single = process.argv[3];

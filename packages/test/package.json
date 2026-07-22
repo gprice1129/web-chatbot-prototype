@@ -32,6 +32,7 @@
     "project-chats-get": "node build/project-chats-get/project-chats-get.js",
     "project-chat-add": "node build/project-chat-add/project-chat-add.js",
     "project-chat-remove": "node build/project-chat-remove/project-chat-remove.js",
+    "project-chat-single": "node build/project-chat-single/project-chat-single.js",
     "project-round-trip": "node build/project-round-trip/project-round-trip.js"
   }
 }

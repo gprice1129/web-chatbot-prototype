@@ -1,9 +1,9 @@
 import { Readable } from "node:stream";
 import { buffer } from "node:stream/consumers";
-import DatabaseService, { FileStatus } from "db";
+import { make_db_services, FileStatus } from "db";
 import {
   type PgBoss,
-  run_PgBoss,
+  start_job_queue,
   register_parser,
   ParseFileJob,
 } from "job_queue";
@@ -11,8 +11,8 @@ import { LocalFileService } from "file_storage";
 import { parse_file } from "#lib/parser.js";
 
 async function main(): Promise<void> {
-  const db = new DatabaseService();
-  const boss = await run_PgBoss();
+  const db = make_db_services();
+  const boss = await start_job_queue();
   const file_service = new LocalFileService({
     base_path: required_env("FILES_BASE_PATH"),
   });
@@ -27,7 +27,7 @@ async function main(): Promise<void> {
         const text = await parse_file(buf, mime_type);
         await file_service.write(Readable.from(Buffer.from(text, "utf-8")),
           parsed_storage_key);
-        await db.update_file_status(file_id, FileStatus.PARSED);
+        await db.file_db.update_file_status(file_id, FileStatus.PARSED);
         console.log(`[${job.id}] wrote ${parsed_storage_key}`);
       } catch (err) {
         // Drop any partial parsed blob so a stale file is not treated as
@@ -35,7 +35,7 @@ async function main(): Promise<void> {
         await file_service.delete(parsed_storage_key).catch(() => {});
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[${job.id}] parse failed for ${file_id}: ${msg}`);
-        await db.update_file_status(file_id, FileStatus.PARSE_FAILED, msg);
+        await db.file_db.update_file_status(file_id, FileStatus.PARSE_FAILED, msg);
       }
     }
   });

@@ -27,5 +27,5 @@ npm run file-status -- <chat-id> <file-id> [base-url]
 
 | Var        | Default      | Notes                                                            |
 | ---------- | ------------ | ---------------------------------------------------------------- |
-| `USERNAME` | `testuser`   | Seeded automatically when the server runs with `APP_ENV=test`.   |
-| `PASSWORD` | `irrelevant` | The test auth service ignores the password for the seeded user. |
+| `TEST_USERNAME` | `testuser`   | Seeded automatically when the server runs with `APP_ENV=test`.   |
+| `TEST_PASSWORD` | `irrelevant` | The test auth service ignores the password for the seeded user. |

@@ -95,8 +95,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     base_url: process.argv[4] ?? "http://localhost:8080",
     chat_id,
     mode: process.argv[3] ?? "standard",
-    username: process.env.USERNAME ?? "testuser",
-    password: process.env.PASSWORD ?? "irrelevant",
+    username: process.env.TEST_USERNAME ?? "testuser",
+    password: process.env.TEST_PASSWORD ?? "irrelevant",
   });
   console.log(JSON.stringify(result, null, 2));
 }

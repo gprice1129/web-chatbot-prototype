@@ -83,8 +83,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const result = await project_chats_get({
     base_url: process.argv[3] ?? "http://localhost:8080",
     project_id,
-    username: process.env.USERNAME ?? "testuser",
-    password: process.env.PASSWORD ?? "irrelevant",
+    username: process.env.TEST_USERNAME ?? "testuser",
+    password: process.env.TEST_PASSWORD ?? "irrelevant",
   });
   console.log(JSON.stringify(result, null, 2));
 }

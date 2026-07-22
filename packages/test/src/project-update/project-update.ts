@@ -1,8 +1,9 @@
 // Standalone example/test for PATCH /api/projects/:project_id.
 //
 // Reading this file shows the full update protocol (authenticate, then PATCH
-// the project with a new name). Running it against a live server asserts that
-// the route works end-to-end:
+// the project with a new name and/or memory_enabled flag; omitted fields are
+// left unchanged). Running it against a live server asserts that the route
+// works end-to-end:
 //
 //   npm run project-update -- <project-id> <name> [base-url]
 //
@@ -18,7 +19,8 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 interface ProjectUpdateOptions {
   base_url: string;
   project_id: string;
-  name: string;
+  name?: string;
+  memory_enabled?: boolean;
   username: string;
   password: string;
 }
@@ -26,6 +28,7 @@ interface ProjectUpdateOptions {
 interface ProjectUpdateResult {
   id: string;
   name: string;
+  memory_enabled: boolean;
 }
 
 export async function project_update(
@@ -51,8 +54,14 @@ export async function project_update(
 
   // 2. Update the project. The project_id in the path is validated by the
   //    project-validate hook — a project the user does not own returns 404
-  //    before the handler runs. The body is JSON `{ name }`; the response
-  //    echoes back the persisted `{ id, name }`.
+  //    before the handler runs. The body is JSON with only the provided fields
+  //    (all optional; omitted fields keep their value); the response echoes
+  //    back the persisted project.
+  const patch: Record<string, unknown> = {};
+  if (undefined !== opts.name) patch.name = opts.name;
+  if (undefined !== opts.memory_enabled) {
+    patch.memory_enabled = opts.memory_enabled;
+  }
   const update_res = await fetch(
     `${opts.base_url}/api/projects/${encodeURIComponent(opts.project_id)}`,
     {
@@ -61,7 +70,7 @@ export async function project_update(
         "Content-Type": "application/json",
         Cookie: session_cookie,
       },
-      body: JSON.stringify({ name: opts.name }),
+      body: JSON.stringify(patch),
     });
   const body = await update_res.text();
   if (update_res.status !== 200) {
@@ -85,8 +94,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     base_url: process.argv[4] ?? "http://localhost:8080",
     project_id,
     name,
-    username: process.env.USERNAME ?? "testuser",
-    password: process.env.PASSWORD ?? "irrelevant",
+    username: process.env.TEST_USERNAME ?? "testuser",
+    password: process.env.TEST_PASSWORD ?? "irrelevant",
   });
   console.log(JSON.stringify(result, null, 2));
 }

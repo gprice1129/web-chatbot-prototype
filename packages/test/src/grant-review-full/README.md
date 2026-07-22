@@ -31,8 +31,8 @@ npm run grant-review-full -- ./data/rfa.pdf ./data/specific-aims.pdf aims
 
 | Var                | Default                   | Notes                                                            |
 | ------------------ | ------------------------- | ---------------------------------------------------------------- |
-| `USERNAME`         | `testuser`                | Seeded automatically when the server runs with `APP_ENV=test`.   |
-| `PASSWORD`         | `irrelevant`              | The test auth service ignores the password for the seeded user. |
+| `TEST_USERNAME`         | `testuser`                | Seeded automatically when the server runs with `APP_ENV=test`.   |
+| `TEST_PASSWORD`         | `irrelevant`              | The test auth service ignores the password for the seeded user. |
 | `TITLE`            | `Grant review full test`  | Title for the chat created by step 1.                            |
 | `POLL_INTERVAL_MS` | `1000`                    | Delay between file-status polls during parse wait.               |
 | `POLL_TIMEOUT_MS`  | `60000`                   | Hard cap on total wait time per file.                            |

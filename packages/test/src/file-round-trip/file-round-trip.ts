@@ -24,6 +24,22 @@ import { pipeline } from "node:stream/promises";
 // undici picks it up when the global dispatcher is created.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
+// Declare the multipart part's Content-Type from the file extension. The server
+// sniffs binary types (pdf/docx) from the bytes, but cannot sniff plain text, so
+// a .txt/.md upload must declare text/plain or text/markdown or the endpoint
+// rejects it (415). Unknown extensions declare nothing and rely on sniffing.
+function content_type_for(file_path: string): string {
+  switch (path.extname(file_path).toLowerCase()) {
+    case ".txt": return "text/plain";
+    case ".md":
+    case ".markdown": return "text/markdown";
+    case ".pdf": return "application/pdf";
+    case ".docx":
+      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    default: return "";
+  }
+}
+
 interface RoundTripOptions {
   base_url: string;
   chat_id: string;
@@ -87,7 +103,8 @@ export async function file_round_trip(
   //    its initial status (`queued` if parsable, `uploaded` otherwise).
   const buf = await fs.promises.readFile(opts.file_path);
   const form = new FormData();
-  form.set("file", new Blob([new Uint8Array(buf)]),
+  form.set("file",
+    new Blob([new Uint8Array(buf)], { type: content_type_for(opts.file_path) }),
     path.basename(opts.file_path));
   const upload_res = await fetch(
     `${opts.base_url}${chat_path}/files/upload`,
@@ -207,8 +224,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     base_url: process.argv[4] ?? "http://localhost:8080",
     chat_id,
     file_path,
-    username: process.env.USERNAME ?? "testuser",
-    password: process.env.PASSWORD ?? "irrelevant",
+    username: process.env.TEST_USERNAME ?? "testuser",
+    password: process.env.TEST_PASSWORD ?? "irrelevant",
     output: process.env.OUTPUT,
     poll_interval_ms: Number(process.env.POLL_INTERVAL_MS ?? 1000),
     poll_timeout_ms: Number(process.env.POLL_TIMEOUT_MS ?? 60000),
