@@ -1,9 +1,10 @@
 // Standalone example/test for PATCH /api/projects/:project_id.
 //
 // Reading this file shows the full update protocol (authenticate, then PATCH
-// the project with a new name and/or memory_enabled flag; omitted fields are
-// left unchanged). Running it against a live server asserts that the route
-// works end-to-end:
+// the project with a new name, description, instructions and/or memory_enabled
+// flag; omitted fields are left unchanged). description and instructions are
+// nullable: omit to keep, send null to clear, send a string to set. Running it
+// against a live server asserts that the route works end-to-end:
 //
 //   npm run project-update -- <project-id> <name> [base-url]
 //
@@ -20,6 +21,8 @@ interface ProjectUpdateOptions {
   base_url: string;
   project_id: string;
   name?: string;
+  description?: string | null;
+  instructions?: string | null;
   memory_enabled?: boolean;
   username: string;
   password: string;
@@ -28,6 +31,8 @@ interface ProjectUpdateOptions {
 interface ProjectUpdateResult {
   id: string;
   name: string;
+  description: string | null;
+  instructions: string | null;
   memory_enabled: boolean;
 }
 
@@ -59,6 +64,9 @@ export async function project_update(
   //    back the persisted project.
   const patch: Record<string, unknown> = {};
   if (undefined !== opts.name) patch.name = opts.name;
+  // null is meaningful here (clears the field), so test against undefined.
+  if (undefined !== opts.description) patch.description = opts.description;
+  if (undefined !== opts.instructions) patch.instructions = opts.instructions;
   if (undefined !== opts.memory_enabled) {
     patch.memory_enabled = opts.memory_enabled;
   }

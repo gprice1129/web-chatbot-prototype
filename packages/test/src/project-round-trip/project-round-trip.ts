@@ -80,7 +80,62 @@ export async function project_round_trip(base_url: string): Promise<void> {
   assert.strictEqual(renamed_again.memory_enabled, true,
     "an update that omits memory_enabled should not change it");
 
-  // 7. Re-add the chat, then delete the project. The project should disappear
+  // 7. Set description and instructions, then clear each in turn. Like
+  //    memory_enabled, every state must be visible in the listing and not just
+  //    the PATCH echo: the two responses are serialized from separate schemas,
+  //    so an echo proves nothing about what GET returns. Each field is cleared
+  //    in its own request with the other left as a control — update_project
+  //    builds a separate CASE branch per field, which is exactly where a
+  //    copy-paste slip between them would hide.
+  const listed_project = async () => {
+    const listing = await project_get(auth);
+    const row = listing.projects.find((p) => p.id === project.id);
+    assert.ok(row, "project should be listed");
+    return row;
+  };
+
+  const described = await project_update({
+    ...auth,
+    project_id: project.id,
+    description: "Round-trip description",
+    instructions: "Round-trip instructions",
+  });
+  assert.strictEqual(described.description, "Round-trip description");
+  assert.strictEqual(described.instructions, "Round-trip instructions");
+  const listed_set = await listed_project();
+  assert.strictEqual(listed_set.description, "Round-trip description",
+    "description should round-trip through the listing");
+  assert.strictEqual(listed_set.instructions, "Round-trip instructions",
+    "instructions should round-trip through the listing");
+
+  const cleared_desc = await project_update(
+    { ...auth, project_id: project.id, description: null });
+  assert.strictEqual(cleared_desc.description, null,
+    "null should clear description");
+  assert.strictEqual(cleared_desc.instructions, "Round-trip instructions",
+    "clearing description should not affect instructions");
+  const listed_cleared_desc = await listed_project();
+  assert.strictEqual(listed_cleared_desc.description, null,
+    "cleared description should read back as null from the listing");
+  assert.strictEqual(listed_cleared_desc.instructions, "Round-trip instructions",
+    "instructions should be untouched in the listing");
+
+  // Clearing instructions exercises the other CASE branch. description is
+  // already null and omitted here, so this also pins down that "omit to keep"
+  // keeps a null rather than resurrecting the old value.
+  const cleared_instr = await project_update(
+    { ...auth, project_id: project.id, instructions: null });
+  assert.strictEqual(cleared_instr.instructions, null,
+    "null should clear instructions");
+  assert.strictEqual(cleared_instr.description, null,
+    "an omitted description should stay null");
+  const listed_cleared_instr = await listed_project();
+  assert.strictEqual(listed_cleared_instr.instructions, null,
+    "cleared instructions should read back as null from the listing");
+  assert.strictEqual(listed_cleared_instr.description, null,
+    "description should still be null in the listing");
+
+  // 8. Re-add the chat, then delete the project. The project should disappear
   //    from the listing, but the chat that was a member must survive (only the
   //    junction rows cascade).
   await project_chat_add({ ...auth, project_id: project.id, chat_id: chat.id });

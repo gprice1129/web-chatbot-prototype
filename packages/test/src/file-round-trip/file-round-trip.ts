@@ -3,7 +3,8 @@
 // Reading this file shows the complete file lifecycle:
 //   1. POST /api/chats/:chat_id/files/upload         (multipart upload)
 //   2. Poll GET /api/chats/:chat_id/files/status/... (until terminal)
-//   3. GET  /api/chats/:chat_id/files/download/...   (stream to disk)
+//   3. POST /api/chats/:chat_id/files/info           (batch metadata lookup)
+//   4. GET  /api/chats/:chat_id/files/download/...   (stream to disk)
 //
 // Running it against a live server asserts that the round trip works
 // end-to-end:
@@ -15,6 +16,7 @@
 // must be a chat owned by `testuser` — typically obtained from
 // `npm run chat-create`.
 
+import assert from "node:assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { Readable } from "node:stream";
@@ -146,7 +148,38 @@ export async function file_round_trip(
     throw new Error(`File parse failed for id ${id}`);
   }
 
-  // 4. Download. Streams the original bytes back with the original mime
+  // 4. Batch info lookup. POST a list of ids; the response carries metadata
+  //    for the ones visible to the caller under this chat (ids the user
+  //    cannot see are silently omitted, so a partial result is normal).
+  //    This is the only route exposing `original_filename`, which is
+  //    nullable — assert it survives as the name we uploaded under.
+  const info_res = await fetch(
+    `${opts.base_url}${chat_path}/files/info`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: session_cookie,
+      },
+      body: JSON.stringify({ ids: [id] }),
+    });
+  const info_body = await info_res.text();
+  if (info_res.status !== 200) {
+    throw new Error(
+      `Files info failed (HTTP ${info_res.status}): ${info_body}`);
+  }
+  const { files } = JSON.parse(info_body) as {
+    files: { id: string; original_filename: string | null; status: string }[];
+  };
+  assert.strictEqual(files.length, 1,
+    "info should return exactly the uploaded file");
+  assert.strictEqual(files[0]!.id, id);
+  assert.strictEqual(files[0]!.original_filename, path.basename(opts.file_path),
+    "info should preserve the uploaded filename");
+  assert.strictEqual(files[0]!.status, status,
+    "info status should agree with the polled status");
+
+  // 5. Download. Streams the original bytes back with the original mime
   //    type and a content-disposition that carries the original filename.
   //    Same as file-download: prefer the RFC 5987 filename* form so
   //    non-ASCII names round-trip cleanly.
