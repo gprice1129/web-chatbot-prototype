@@ -27,9 +27,10 @@ import { pipeline } from "node:stream/promises";
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 // Declare the multipart part's Content-Type from the file extension. The server
-// sniffs binary types (pdf/docx) from the bytes, but cannot sniff plain text, so
-// a .txt/.md upload must declare text/plain or text/markdown or the endpoint
-// rejects it (415). Unknown extensions declare nothing and rely on sniffing.
+// sniffs binary types (pdf/docx) from the bytes, but cannot sniff plain text: a
+// .txt/.md upload is accepted on its declared type, or — when the client has no
+// mapping for the extension and declares application/octet-stream — on the
+// filename. Unknown extensions declare nothing and rely on sniffing.
 function content_type_for(file_path: string): string {
   switch (path.extname(file_path).toLowerCase()) {
     case ".txt": return "text/plain";
