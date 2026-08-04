@@ -19,6 +19,30 @@ fi
 
 run() { psql -v ON_ERROR_STOP=1 --no-psqlrc "$@"; }
 
+# Extensions the migrations depend on (currently: vector for embeddings).
+# CREATE EXTENSION requires superuser and the numbered migrations run as the
+# unprivileged app role, so it is applied here as a separate superuser step.
+# Fresh volumes already got it from bootstrap.sh; this covers databases created
+# before the extension was introduced. IF NOT EXISTS makes it idempotent.
+#
+if [ -n "${POSTGRES_SUPERUSER:-}" ]; then
+    if [ -z "${POSTGRES_SUPERUSER_PASSWORD:-}" ] && [ -n "${POSTGRES_SUPERUSER_PASSWORD_FILE:-}" ]; then
+        POSTGRES_SUPERUSER_PASSWORD="$(cat "$POSTGRES_SUPERUSER_PASSWORD_FILE")"
+    fi
+    echo "Ensuring required extensions exist"
+    # -d is explicit because -U overrides only the role: without it libpq falls
+    # back to PGDATABASE, and with that unset it defaults the dbname to the
+    # *username*. The extension would land in the `postgres` maintenance
+    # database and migration 012 would fail with "type vector does not exist".
+    PGPASSWORD="${POSTGRES_SUPERUSER_PASSWORD:-}" psql -v ON_ERROR_STOP=1 --no-psqlrc \
+        -U "$POSTGRES_SUPERUSER" \
+        -d "${PGDATABASE:?must be set so the extension lands in the app database}" \
+        -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+else
+    echo "POSTGRES_SUPERUSER unset -- skipping the extension step." \
+         "Migrations needing an extension will fail if it is absent."
+fi
+
 # Ensure the tracking table exists before we query it. 000 is idempotent.
 echo "Ensuring migration tracking table exists"
 run -q -f /migrations/000_create_migrations_table.sql

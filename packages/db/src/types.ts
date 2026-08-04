@@ -6,9 +6,12 @@ export {
   ChatMessageRole,
   ChatMessageWithFileIds,
   ChatTranscriptTurn,
+  EmbeddingChunk,
+  EmbeddingMatch,
   File,
   FileStatus,
   Project,
+  SearchEmbeddingsParams,
   Session,
   User
 }
@@ -101,6 +104,41 @@ interface ChatMemory {
   source_through: Date;
   created_at: Date;
   updated_at: Date;
+}
+
+// One chunk to store. `embedding` must be EMBEDDING_DIMENSIONS wide and should
+// be unit-normalized.
+interface EmbeddingChunk {
+  owner_kind: string;
+  owner_id: string;
+  chunk_index: number;
+  content: string;
+  embedding: number[];
+  model: string;
+}
+
+interface SearchEmbeddingsParams {
+  user_id: string;
+  embedding: number[];
+  // Only vectors from this model are comparable to `embedding`.
+  model: string;
+  // Restrict to these owner kinds. Omit to search all of them.
+  owner_kinds?: string[];
+  // Max hits. Applied as the ANN top-k before min_similarity trims it.
+  limit?: number;
+  // Drop hits below this cosine similarity. Defaults to 0 (keep everything).
+  min_similarity?: number;
+}
+
+// A semantic-search hit. Normally similarity is cosine distance inverted
+// ([-1, 1]). Vectors from the Embedder port are unit-normalized which
+// puts it in [0, 1] with 1 meaning identical.
+interface EmbeddingMatch {
+  owner_kind: string;
+  owner_id: string;
+  chunk_index: number;
+  content: string;
+  similarity: number;
 }
 
 interface File {

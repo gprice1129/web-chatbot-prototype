@@ -3,6 +3,7 @@
   "references": [
     { "path": "./packages/aim_hi_chatbot" },
     { "path": "./packages/db" },
+    { "path": "./packages/embedding" },
     { "path": "./packages/file_storage" },
     { "path": "./packages/job_queue" },
     { "path": "./packages/aim_hi_webserver" },

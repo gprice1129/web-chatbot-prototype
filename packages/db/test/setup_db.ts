@@ -1,10 +1,8 @@
 // setup_db.ts
 //
-// Recreates the scratch test database (default aim_hi_test) on the compose
-// postgres instance, then applies every migration and seed file in filename
-// order — what config/db/migrate.sh does, minus the skip logic a fresh
-// database doesn't need. Run automatically by `npm test` (pretest); safe to
-// re-run, the database is dropped and rebuilt every time.
+// Recreates the scratch test database on the compose postgres instance, then
+// applies every migration and seed file in filename order. Run automatically
+// with `npm test`.
 
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -27,9 +25,7 @@ async function run_sql_dir(client: pg.Client, dir: string): Promise<void> {
 
 const { host, port, database, app_user } = test_db_config;
 
-// Drop and recreate as the superuser; the app role owns the fresh database,
-// just as bootstrap.sh arranges for the real one. Names are identifier-safe
-// (validated in harness.ts).
+// Drop and recreate as the superuser. The app role owns the fresh database.
 console.log(`Recreating ${database} on ${host}:${port}`);
 const admin = new pg.Client({
   host,
@@ -43,8 +39,19 @@ await admin.query(`DROP DATABASE IF EXISTS ${database} WITH (FORCE)`);
 await admin.query(`CREATE DATABASE ${database} OWNER ${app_user}`);
 await admin.end();
 
-// Migrations and seeds run as the app role, matching the compose migrate
-// service.
+// Extensions the migrations depend on.
+const ext = new pg.Client({
+  host,
+  port,
+  user: test_db_config.super_user,
+  password: test_db_config.super_password,
+  database,
+});
+await ext.connect();
+await ext.query("CREATE EXTENSION IF NOT EXISTS vector");
+await ext.end();
+
+// Run the migrations and seed.
 const client = new pg.Client({
   host,
   port,

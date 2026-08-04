@@ -30,6 +30,7 @@ services:
       MODEL_SUMMARY_THINKING: ${MODEL_SUMMARY_THINKING:-}
       MODEL_SUMMARY_CACHING: ${MODEL_SUMMARY_CACHING:-}
       MODEL_SUMMARY_MAX_TOKENS: ${MODEL_SUMMARY_MAX_TOKENS:-}
+      EMBEDDER_BASE_URL: ${EMBEDDER_BASE_URL:-http://embedder:80}
       PGHOST: postgres
       PGPORT: 5432
       PGUSER: ${APP_DB_USER}
@@ -90,6 +91,44 @@ services:
     mem_limit: 512m
     cpus: "0.75"
 
+  # Self-hosted embedding server.
+  # Text that is embedded never leaves the compose network including chat
+  # content and uploaded documents.
+  #
+  # Deliberately has no healthcheck because the TEI runtime image does not ship
+  # with an HTTP client.
+  embedder:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+    restart: unless-stopped
+    command:
+      - "--model-id"
+      - "${EMBEDDER_MODEL:-BAAI/bge-large-en-v1.5}"
+      - "--port"
+      - "80"
+      # Token budget for one inference batch. TEI allocates against this during
+      # warmup, so it sets peak memory at load. The server default (16384) sizes
+      # activation buffers for a GPU and is pure waste on CPU.
+      #
+      # 4096 is not arbitrary: it is the largest batch this deployment can
+      # actually form. The CPU backend caps batches at 8 requests and
+      # bge-large's context is 512 tokens. 8 x 512 = 4096 is the ceiling.
+      #
+      # Do not go below the model's context length. With --auto-truncate off,
+      # TEI refuses to start when max_input_length exceeds max-batch-tokens. A
+      # longer-context model needs this raised to match.
+      - "--max-batch-tokens"
+      - "${EMBEDDER_MAX_BATCH_TOKENS:-4096}"
+    expose:
+      - 80
+    volumes:
+      # Weights are downloaded on first boot (~1.3GB for the default model);
+      # without this they are re-fetched every time the container is recreated.
+      - embedder_models:/data
+    # Must comfortably exceed the fp32 weights (~1.3GB for bge-large), because
+    # TEI peaks near double that while materializing tensors during load.
+    mem_limit: 4g
+    cpus: "4.0"
+
   nginx:
     build:
       context: .
@@ -110,7 +149,7 @@ services:
       SERVER_NAME: ${SERVER_NAME}
 
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17
     restart: unless-stopped
     expose:
       - 5432
@@ -147,8 +186,12 @@ services:
       PGUSER: ${APP_DB_USER}
       PGPASSWORD_FILE: /run/secrets/app_db_password
       PGDATABASE: ${APP_DB_NAME}
+      # Used only for the CREATE EXTENSION pre-step in migrate.sh.
+      POSTGRES_SUPERUSER: ${POSTGRES_USER}
+      POSTGRES_SUPERUSER_PASSWORD_FILE: /run/secrets/postgres_password
     secrets:
       - app_db_password
+      - postgres_password
     entrypoint: ["/bin/bash", "/migrate.sh"]
     volumes:
       - ./config/db/migrate.sh:/migrate.sh:ro
@@ -160,6 +203,7 @@ services:
 volumes:
   postgres_data:
   uploads:
+  embedder_models:
 
 # Secrets are read from files on the host (kept out of git and out of images)
 # and mounted into the containers at /run/secrets/<name>. Generate them with

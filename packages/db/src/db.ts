@@ -9,6 +9,7 @@ export { ApplicationDbService } from "./applications.js";
 export { ChatDbService } from "./chats.js";
 export { ProjectDbService } from "./projects.js";
 export { MemoryDbService } from "./memory.js";
+export { EMBEDDING_DIMENSIONS, EmbeddingDbService } from "./embeddings.js";
 
 import * as pg from "pg";
 import { make_pool } from "./pool.js";
@@ -19,6 +20,7 @@ import { ApplicationDbService } from "./applications.js";
 import { ChatDbService } from "./chats.js";
 import { ProjectDbService } from "./projects.js";
 import { MemoryDbService } from "./memory.js";
+import { EmbeddingDbService } from "./embeddings.js";
 
 interface DbServices {
   user_db: UserDbService;
@@ -28,6 +30,7 @@ interface DbServices {
   chat_db: ChatDbService;
   project_db: ProjectDbService;
   memory_db: MemoryDbService;
+  embedding_db: EmbeddingDbService;
   close(): Promise<void>;
 }
 
@@ -41,6 +44,7 @@ function make_db_services(pool: pg.Pool = make_pool()): DbServices {
     chat_db: new ChatDbService(pool),
     project_db: new ProjectDbService(pool),
     memory_db: new MemoryDbService(pool),
+    embedding_db: new EmbeddingDbService(pool),
     close: () => pool.end(),
   };
 }

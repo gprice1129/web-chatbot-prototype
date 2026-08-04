@@ -1,0 +1,29 @@
+{
+  "name": "embedding",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./build/embedding.js",
+  "types": "./build/embedding.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/embedding.d.ts",
+      "default": "./build/embedding.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "tsc -b && node --test \"test/unit/**/*.test.ts\"",
+    "test:integration": "tsc -b . ../db && node --test \"test/integration/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "db": "*"
+  }
+}

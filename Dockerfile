@@ -9,16 +9,21 @@ COPY packages/aim_hi_chatbot/package.json packages/aim_hi_chatbot/package.json
 COPY packages/job_queue/package.json packages/job_queue/package.json
 COPY packages/parser/package.json packages/parser/package.json
 COPY packages/db/package.json packages/db/package.json
+COPY packages/embedding/package.json packages/embedding/package.json
 COPY packages/file_storage/package.json packages/file_storage/package.json
 
 RUN npm ci
 
+# Every package the root tsconfig.json references must be present: `npm run
+# build` causes `tsc -b` to be run over the project graph. A missing package 
+# causes a build failure.
 COPY tsconfig.json tsconfig.base.json ./
 COPY packages/aim_hi_webserver packages/aim_hi_webserver
 COPY packages/aim_hi_chatbot packages/aim_hi_chatbot
 COPY packages/job_queue packages/job_queue
 COPY packages/parser packages/parser
 COPY packages/db packages/db
+COPY packages/embedding packages/embedding
 COPY packages/file_storage packages/file_storage
 
 RUN npm run build
