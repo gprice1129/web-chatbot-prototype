@@ -10,6 +10,13 @@ import { after, beforeEach, describe, it } from "node:test";
 import * as pg from "pg";
 import { make_db_services } from "db";
 import { make_test_pool, reset_db } from "./harness.js";
+import {
+  add_message,
+  add_to_project,
+  make_chat,
+  make_project,
+  make_user,
+} from "./common.js";
 
 const pool = make_test_pool();
 const db = make_db_services(pool);
@@ -24,58 +31,6 @@ after(async () => {
 //------------------------------------------------------------------------------
 // fixtures
 //------------------------------------------------------------------------------
-
-async function make_user(pool: pg.Pool, name: string): Promise<string> {
-  const result = await pool.query(
-    `INSERT INTO users (username, email, password_hash)
-     VALUES ($1, $2, 'test-hash') RETURNING id`,
-    [name, `${name}@example.test`]);
-  return result.rows[0].id;
-}
-
-async function make_chat(pool: pg.Pool, user_id: string, title = "chat"): Promise<string> {
-  const result = await pool.query(
-    `INSERT INTO chats (user_id, title) VALUES ($1, $2) RETURNING id`,
-    [user_id, title]);
-  return result.rows[0].id;
-}
-
-// created_at accepts a Date, or a string when a test needs microsecond
-// precision (a JS Date carries only milliseconds). The returned Date is what
-// pg hands back — millisecond-truncated — exactly what the summarizer job
-// sees in production.
-async function add_message(
-  pool: pg.Pool,
-  chat_id: string,
-  role: string,
-  created_at?: Date | string,
-): Promise<Date> {
-  const result = await pool.query(
-    `INSERT INTO chat_messages (chat_id, role, content, created_at)
-     VALUES ($1, $2, 'msg', coalesce($3::timestamptz, now()))
-     RETURNING created_at`,
-    [chat_id, role, created_at ?? null]);
-  return result.rows[0].created_at;
-}
-
-async function make_project(
-  pool: pg.Pool,
-  user_id: string,
-  memory_enabled = true,
-  name = "project",
-): Promise<string> {
-  const result = await pool.query(
-    `INSERT INTO projects (user_id, name, memory_enabled)
-     VALUES ($1, $2, $3) RETURNING id`,
-    [user_id, name, memory_enabled]);
-  return result.rows[0].id;
-}
-
-async function add_to_project(pool: pg.Pool, project_id: string, chat_id: string): Promise<void> {
-  await pool.query(
-    `INSERT INTO project_chats (project_id, chat_id) VALUES ($1, $2)`,
-    [project_id, chat_id]);
-}
 
 async function get_summary(
   pool: pg.Pool,
@@ -246,7 +201,7 @@ describe("get_stale_summary_chats", () => {
 describe("get_sibling_summaries", () => {
   it("returns the other chats' summaries, newest watermark first, never the active chat's own", async () => {
     const user = await make_user(pool, "alice");
-    const project = await make_project(pool, user);
+    const project = await make_project(pool, user, true);
     const active = await make_chat(pool, user, "active");
     const older = await make_chat(pool, user, "older");
     const newer = await make_chat(pool, user, "newer");
@@ -265,7 +220,7 @@ describe("get_sibling_summaries", () => {
 
   it("omits siblings that have no summary (other memory kinds don't count)", async () => {
     const user = await make_user(pool, "alice");
-    const project = await make_project(pool, user);
+    const project = await make_project(pool, user, true);
     const active = await make_chat(pool, user, "active");
     const summarized = await make_chat(pool, user, "summarized");
     const unsummarized = await make_chat(pool, user, "unsummarized");
@@ -295,7 +250,7 @@ describe("get_sibling_summaries", () => {
 
   it("returns nothing for a chat that is not in a project", async () => {
     const user = await make_user(pool, "alice");
-    const project = await make_project(pool, user);
+    const project = await make_project(pool, user, true);
     const loose = await make_chat(pool, user, "not in any project");
     const in_project = await make_chat(pool, user, "in the project");
     await add_to_project(pool, project, in_project);
@@ -307,7 +262,7 @@ describe("get_sibling_summaries", () => {
   it("never crosses user boundaries", async () => {
     const alice = await make_user(pool, "alice");
     const mallory = await make_user(pool, "mallory");
-    const project = await make_project(pool, alice);
+    const project = await make_project(pool, alice, true);
     const active = await make_chat(pool, alice, "active");
     const sibling = await make_chat(pool, alice, "sibling");
     await add_to_project(pool, project, active);
