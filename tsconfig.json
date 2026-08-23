@@ -1,6 +1,7 @@
 {
   "files": [],
   "references": [
+    { "path": "./packages/common" },
     { "path": "./packages/aim_hi_chatbot" },
     { "path": "./packages/db" },
     { "path": "./packages/file_storage" },
