@@ -1,0 +1,29 @@
+{
+  "name": "knowledge_graph",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./build/knowledge_graph.js",
+  "types": "./build/knowledge_graph.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/knowledge_graph.d.ts",
+      "default": "./build/knowledge_graph.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "tsc -b && node --test \"test/unit/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@types/node": "^25.5.0",
+    "common": "*",
+    "typescript": "^5.9.3"
+  },
+  "imports": {
+    "#kg/*": "./build/*"
+  }
+}
