@@ -15,3 +15,7 @@ export type {
   FrontmatterValue,
   FrontmatterMap,
 } from "#common/frontmatter.js";
+
+export {
+  is_object,
+} from "#common/type-checker.js";

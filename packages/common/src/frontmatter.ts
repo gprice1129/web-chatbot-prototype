@@ -14,6 +14,7 @@ export type {
 import { load, CORE_SCHEMA, YAMLException } from "js-yaml";
 
 import type { Result } from "#common/result.js";
+import { is_object } from "#common/type-checker.js";
 
 /*
  * Main Concept
@@ -116,7 +117,7 @@ function _has_content(frontmatter: string): boolean {
  * Private
  */
 function _is_field_map(value: unknown): value is FrontmatterMap {
-  return null !== value && "object" === typeof value && !Array.isArray(value);
+  return is_object(value);
 }
 
 /*

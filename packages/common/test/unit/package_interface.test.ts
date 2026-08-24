@@ -8,7 +8,7 @@ import * as assert from "node:assert/strict";
 describe("the common package interface", () => {
   it("offers exactly what the barrel exports", async () => {
     const surface = Object.keys(await import("common")).sort();
-    assert.deepEqual(surface, ["parse_frontmatter", "separate_frontmatter"]);
+    assert.deepEqual(surface, ["is_object", "parse_frontmatter", "separate_frontmatter"]);
   });
 
   it("refuses a module inside the package, reached by name", async () => {
