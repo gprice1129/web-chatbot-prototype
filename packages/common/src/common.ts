@@ -18,4 +18,8 @@ export type {
 
 export {
   is_object,
+  is_string,
+  is_number,
+  is_boolean,
+  is_missing,
 } from "#common/type-checker.js";
