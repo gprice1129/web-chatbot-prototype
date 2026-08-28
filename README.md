@@ -44,6 +44,9 @@ APP_DB_NAME=chatbot
 FILES_BASE_PATH=/var/lib/aim_hi/uploads
 APP_ENV=production
 SERVER_NAME=your.domain.com
+
+# Knowledge base: the markdown corpus the chatbot builds its graph from on startup
+KNOWLEDGE_BASE_ROOT=/srv/aim-hi/knowledge_base
 ```
 
 #### Secrets
