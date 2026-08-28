@@ -4,7 +4,7 @@ End-to-end check that the input limits on `POST /api/login` are enforced. Issues
 four login attempts and asserts:
 
 - a within-limits credential is **not** rejected by the caps — it reaches the
-  auth check (`200` under `APP_ENV=test`, or `401` otherwise);
+  auth check (`200` under `AUTH_MODE=mock`, or `401` otherwise);
 - a username one character over `LOGIN_USERNAME_MAX_LENGTH` → `400` (validation);
 - a password one character over `LOGIN_PASSWORD_MAX_LENGTH` → `400` (validation);
 - a request body larger than `LOGIN_BODY_LIMIT` → `413`, rejected during parsing
@@ -13,7 +13,7 @@ four login attempts and asserts:
 ## Prerequisites
 
 - Webserver running and reachable (default `http://localhost:8080`).
-- Started with `APP_ENV=test` so `testuser` is seeded (any password is accepted).
+- Started with `AUTH_MODE=mock` so `testuser` is seeded (any password is accepted).
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 
 ## Run

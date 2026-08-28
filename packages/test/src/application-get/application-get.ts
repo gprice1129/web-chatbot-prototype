@@ -6,8 +6,8 @@
 //
 //   npm run application-get -- [base-url]
 //
-// The server must be running with APP_ENV=test, which seeds `testuser` and
-// configures the testing auth service to ignore the password.
+// The server must be running with AUTH_MODE=mock, which seeds `testuser` and
+// configures the mock auth service to ignore the password.
 
 // Match `curl -k` for the local self-signed cert. Set before any fetch so
 // undici picks it up when the global dispatcher is created.

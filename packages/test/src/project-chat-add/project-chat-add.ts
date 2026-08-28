@@ -6,8 +6,8 @@
 //
 //   npm run project-chat-add -- <project-id> <chat-id> [base-url]
 //
-// The server must be running with APP_ENV=test, which seeds `testuser` and
-// configures the testing auth service to ignore the password. Both <project-id>
+// The server must be running with AUTH_MODE=mock, which seeds `testuser` and
+// configures the mock auth service to ignore the password. Both <project-id>
 // and <chat-id> must belong to `testuser` — typically obtained from
 // `npm run project-create` and `npm run chat-create`. Adding an already-linked
 // chat is idempotent.

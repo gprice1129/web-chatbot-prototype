@@ -17,7 +17,7 @@
 //
 // `companion-path` is the proposal document for the default modes, or the
 // specific-aims document when `mode=aims`. The server must be running with
-// APP_ENV=test, which seeds `testuser` and configures the testing auth
+// AUTH_MODE=mock, which seeds `testuser` and configures the mock auth
 // service to ignore the password.
 //
 // Progress is reported through the optional `on_progress` callback so the

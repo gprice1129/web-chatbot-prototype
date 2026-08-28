@@ -49,7 +49,8 @@ const SHAPE = {
     app_database: required("APP_DB_NAME"),
   },
   app: {
-    env: "APP_ENV",
+    auth_mode: "AUTH_MODE",
+    model_mode: "MODEL_MODE",
     files_base_path: required("FILES_BASE_PATH"),
     trust_proxy: "TRUST_PROXY",
   },

@@ -11,12 +11,12 @@ limiter behaved correctly:
 
 The limit applies *before* credentials are checked and is keyed by client IP,
 so the test does not depend on the auth outcome — both `200` (under
-`APP_ENV=test`) and `401` count as an attempt that reached the limiter.
+`AUTH_MODE=mock`) and `401` count as an attempt that reached the limiter.
 
 ## Prerequisites
 
 - Webserver running and reachable (default `http://localhost:8080`).
-- Started with `APP_ENV=test` so `testuser` is seeded (any password is accepted).
+- Started with `AUTH_MODE=mock` so `testuser` is seeded (any password is accepted).
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 
 ## Run
@@ -45,7 +45,7 @@ against a freshly reset window (wait out the window or restart the server).
 
 | Var                    | Default      | Notes                                                                  |
 | ---------------------- | ------------ | ---------------------------------------------------------------------- |
-| `TEST_USERNAME`             | `testuser`   | Seeded automatically when the server runs with `APP_ENV=test`.         |
+| `TEST_USERNAME`             | `testuser`   | Seeded automatically when the server runs with `AUTH_MODE=mock`.         |
 | `TEST_PASSWORD`             | `irrelevant` | The test auth service ignores the password for the seeded user.        |
 | `RATE_LIMIT_LOGIN_MAX` | _unset_      | If set, sizes the burst to `max*2 + 2`. The server's actual cap is read from `x-ratelimit-limit`. |
 | `MAX_ATTEMPTS`         | `12`         | Hard cap on attempts fired while looking for a `429`. Raise it if the configured max is large. |

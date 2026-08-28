@@ -65,10 +65,10 @@ test("merge: a local section overrides one key and keeps its siblings", () => {
 });
 
 test("merge: a null in the override unsets what the base set", () => {
-  const base = { ...minimal(), app: { files_base_path: "/uploads", env: "production" } };
-  const merged = merge(base, { app: { env: null } });
+  const base = { ...minimal(), app: { files_base_path: "/uploads", trust_proxy: false } };
+  const merged = merge(base, { app: { trust_proxy: null } });
   const names = flatten(merged).map((entry) => entry.name);
-  assert.equal(names.includes("APP_ENV"), false);
+  assert.equal(names.includes("TRUST_PROXY"), false);
 });
 
 test("merge: the override can add a section the base lacks", () => {

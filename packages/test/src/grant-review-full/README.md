@@ -5,7 +5,7 @@ End-to-end exercise of the full grant review flow: creates a chat, uploads the r
 ## Prerequisites
 
 - Webserver running and reachable (default `http://localhost:8080`).
-- Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
+- Server started with `AUTH_MODE=mock`, which seeds `testuser` and configures the mock auth service to ignore the password.
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 - The parser worker is running so parsable mimes (pdf, docx, …) transition from `queued` to `parsed`. Plain-text uploads skip parsing.
 
@@ -31,7 +31,7 @@ npm run grant-review-full -- ./data/rfa.pdf ./data/specific-aims.pdf aims
 
 | Var                | Default                   | Notes                                                            |
 | ------------------ | ------------------------- | ---------------------------------------------------------------- |
-| `TEST_USERNAME`         | `testuser`                | Seeded automatically when the server runs with `APP_ENV=test`.   |
+| `TEST_USERNAME`         | `testuser`                | Seeded automatically when the server runs with `AUTH_MODE=mock`.   |
 | `TEST_PASSWORD`         | `irrelevant`              | The test auth service ignores the password for the seeded user. |
 | `TITLE`            | `Grant review full test`  | Title for the chat created by step 1.                            |
 | `POLL_INTERVAL_MS` | `1000`                    | Delay between file-status polls during parse wait.               |

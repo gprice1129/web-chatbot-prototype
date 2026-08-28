@@ -9,7 +9,7 @@ A `parse_failed` terminal status throws (no point downloading a failed parse). A
 ## Prerequisites
 
 - Webserver running and reachable (default `http://localhost:8080`).
-- Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
+- Server started with `AUTH_MODE=mock`, which seeds `testuser` and configures the mock auth service to ignore the password.
 - A chat id owned by `testuser` — typically obtained from a prior `npm run chat-create` run.
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 
@@ -28,7 +28,7 @@ npm run file-round-trip -- <chat-id> <path-to-file> [base-url]
 
 | Var                 | Default                | Notes                                                            |
 | ------------------- | ---------------------- | ---------------------------------------------------------------- |
-| `TEST_USERNAME`          | `testuser`             | Seeded automatically when the server runs with `APP_ENV=test`.   |
+| `TEST_USERNAME`          | `testuser`             | Seeded automatically when the server runs with `AUTH_MODE=mock`.   |
 | `TEST_PASSWORD`          | `irrelevant`           | The test auth service ignores the password for the seeded user. |
 | `OUTPUT`            | `./<server-filename>`  | Target path. If it points to an existing directory, the server-supplied filename is appended; otherwise the value is used as the literal output path. |
 | `POLL_INTERVAL_MS`  | `1000`                 | Delay between status polls. |

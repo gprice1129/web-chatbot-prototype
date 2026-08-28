@@ -4,11 +4,12 @@
   },
   "postgres": {
     "superuser": "postgres",
-    "app_user": "app",
-    "app_database": "chatbot"
+    "app_user": "aim_hi_user",
+    "app_database": "aim_hi_db"
   },
   "app": {
-    "env": "production",
+    "auth_mode": "real",
+    "model_mode": "real",
     "files_base_path": "/var/lib/aim_hi/uploads",
     "trust_proxy": false
   },
@@ -24,9 +25,18 @@
     "root": "./config/knowledge_base"
   },
   "rate_limits": {
-    "login": { "max": 5, "window": "1 minute" },
-    "ally": { "max": 30, "window": "1 minute" },
-    "grant_review": { "max": 10, "window": "1 hour" }
+    "login": {
+      "max": 5,
+      "window": "1 minute"
+    },
+    "ally": {
+      "max": 30,
+      "window": "1 minute"
+    },
+    "grant_review": {
+      "max": 10,
+      "window": "1 hour"
+    }
   },
   "login_limits": {
     "username_max_length": 64,
@@ -34,8 +44,23 @@
     "body_limit": 4096
   },
   "models": {
-    "ally": { "effort": null, "thinking": null, "caching": null, "max_tokens": null },
-    "grant_review": { "effort": null, "thinking": null, "caching": null, "max_tokens": null },
-    "summary": { "effort": null, "thinking": null, "caching": null, "max_tokens": null }
+    "ally": {
+      "effort": null,
+      "thinking": null,
+      "caching": null,
+      "max_tokens": null
+    },
+    "grant_review": {
+      "effort": null,
+      "thinking": null,
+      "caching": null,
+      "max_tokens": null
+    },
+    "summary": {
+      "effort": null,
+      "thinking": null,
+      "caching": null,
+      "max_tokens": null
+    }
   }
 }

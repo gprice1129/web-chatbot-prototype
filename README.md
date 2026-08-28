@@ -48,7 +48,7 @@ file unsets a value the base config set. The sections are:
 | --- | --- |
 | `anthropic` | the API endpoint the chatbot targets (the key itself is a secret) |
 | `postgres` | the superuser, app role and database names (passwords are secrets) |
-| `app` | environment, upload path, proxy trust |
+| `app` | `auth_mode` and `model_mode`, each `real` or `mock`: mock auth seeds `testuser` and accepts any password; the mock model gives canned replies. Also the upload path and proxy trust |
 | `nginx`, `frontend` | the public hostname, and the frontend's base and API paths |
 | `secrets_dir` | where compose reads the secret files (see below) |
 | `knowledge_base` | the markdown corpus the chatbot builds its graph from on startup |
