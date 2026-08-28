@@ -20,7 +20,7 @@ npm run build
 npm run ally -- <chat-id> [message] [base-url]
 ```
 
-With no `[message]`, the driver runs a short scripted conversation that exercises domain knowledge (UAB / Hugh Kaul), the grant-reviewer hand-off link (`/apps/grant-reviewer-standard`), and multi-turn memory (the final turn asks Ally to recall the earlier request). Pass an explicit `[message]` to send a single turn instead. `base-url` defaults to `http://localhost:8080`. Pass a full URL (e.g. `https://localhost`) to target a TLS frontend.
+With no `[message]`, the driver runs a short scripted conversation that exercises domain knowledge (UAB / Hugh Kaul), the grant-reviewer hand-off link (`/apps/grant-reviewer`), and multi-turn memory (the final turn asks Ally to recall the earlier request). Pass an explicit `[message]` to send a single turn instead. `base-url` defaults to `http://localhost:8080`. Pass a full URL (e.g. `https://localhost`) to target a TLS frontend.
 
 ## Env overrides
 
