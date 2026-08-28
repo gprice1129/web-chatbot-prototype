@@ -20,3 +20,7 @@ packages/test/*
 
 # Misc
 plan/**
+
+# Knowledge base: bind-mounted at runtime, never baked into an image
+config/knowledge_base/
+config/docker/config.local.json

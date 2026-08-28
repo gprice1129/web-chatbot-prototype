@@ -9,14 +9,15 @@
     "build:chatbot": "cd packages/aim_hi_chatbot && npm run build",
     "build:webserver": "cd packages/aim_hi_webserver && npm run build",
     "build:fe": "cd packages/aim_hi_fe && npm run build",
-    "test": "npm run test:common && npm run test:knowledge_graph && npm run test:file_storage && npm run test:chatbot && npm run test:webserver && npm run test:fe",
+    "test": "npm run test:scripts && npm run test:common && npm run test:knowledge_graph && npm run test:file_storage && npm run test:chatbot && npm run test:webserver && npm run test:fe",
     "test:chatbot": "cd packages/aim_hi_chatbot && npm run test",
     "test:webserver": "cd packages/aim_hi_webserver && npm run test",
     "test:fe": "cd packages/aim_hi_fe && npm run test",
     "test:common": "cd packages/common && npm run test",
     "test:knowledge_graph": "cd packages/knowledge_graph && npm run test",
     "test:file_storage": "cd packages/file_storage && npm run test",
-    "test:db": "cd packages/db && npm run test"
+    "test:db": "cd packages/db && npm run test",
+    "test:scripts": "node --test \"scripts/**/*.test.mjs\""
   },
   "devDependencies": {
     "fastify": "^5.8.4",

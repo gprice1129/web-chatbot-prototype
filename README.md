@@ -24,30 +24,36 @@ npm install
 
 ### 2. Configure environment and secrets
 
-Non-secret configuration is supplied via an env file read by Docker Compose.
-Secret values are **not** kept here — they are mounted into the containers as
-files via Docker Compose `secrets:` (see below), which keeps them out of
-`docker inspect`, `/proc/<pid>/environ`, child-process env, and crash logs.
+Non-secret configuration is written in `config/docker/config.json` and rendered
+into the env file Docker Compose reads. Secret values are **not** kept there.
+They are mounted into the containers as files via Docker Compose `secrets:`
+(see below), which keeps them out of `docker inspect`, `/proc/<pid>/environ`,
+child-process env, and crash logs.
 
-Create a `.env` file in the project root:
+Render the config into the `.env` file:
 
-```env
-# Anthropic (the endpoint the chatbot targets; its credential is a secret)
-ANTHROPIC_BASE_URL=https://api.anthropic.com
-
-# Postgres / application database (names and roles only; passwords are secrets)
-POSTGRES_USER=postgres
-APP_DB_USER=app
-APP_DB_NAME=chatbot
-
-# Storage, runtime, nginx
-FILES_BASE_PATH=/var/lib/aim_hi/uploads
-APP_ENV=production
-SERVER_NAME=your.domain.com
-
-# Knowledge base: the markdown corpus the chatbot builds its graph from on startup
-KNOWLEDGE_BASE_ROOT=/srv/aim-hi/knowledge_base
+```sh
+node scripts/gen_env.mjs            # writes ./.env
+node scripts/gen_env.mjs --force    # overwrite an existing .env
 ```
+
+Machine-specific values go in `config/docker/config.local.json`, which is
+gitignored and merged over `config.json` key by key.
+
+Each key maps onto one variable in `docker-compose.yml`. A `null` value leaves
+that variable unset, so the compose default applies. A `null` in the local
+file unsets a value the base config set. The sections are:
+
+| section | what it configures |
+| --- | --- |
+| `anthropic` | the API endpoint the chatbot targets (the key itself is a secret) |
+| `postgres` | the superuser, app role and database names (passwords are secrets) |
+| `app` | environment, upload path, proxy trust |
+| `nginx`, `frontend` | the public hostname, and the frontend's base and API paths |
+| `secrets_dir` | where compose reads the secret files (see below) |
+| `knowledge_base` | the markdown corpus the chatbot builds its graph from on startup |
+| `rate_limits`, `login_limits` | request limits |
+| `models` | per-bot generation parameters; `null` keeps the app's profile defaults |
 
 #### Secrets
 

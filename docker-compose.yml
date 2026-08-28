@@ -64,7 +64,7 @@ services:
     volumes:
       - uploads:${FILES_BASE_PATH}
       # The markdown corpus on the host. Read-only: the app only reads it.
-      - ${KNOWLEDGE_BASE_ROOT:?path to the knowledge base directory on the host}:/var/lib/aim_hi/knowledge_base:ro
+      - ${KNOWLEDGE_BASE_ROOT:-./config/knowledge_base}:/var/lib/aim_hi/knowledge_base:ro
     mem_limit: 768m
     cpus: "1.0"
 
