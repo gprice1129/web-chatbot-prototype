@@ -2,6 +2,9 @@
   "name": "knowledge_graph",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
   "type": "module",
   "main": "./build/knowledge_graph.js",
   "types": "./build/knowledge_graph.d.ts",

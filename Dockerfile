@@ -3,7 +3,7 @@ ARG FE_DIST_DIR=dist
 
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 COPY packages/common/package.json packages/common/package.json
 COPY packages/knowledge_graph/package.json packages/knowledge_graph/package.json
 COPY packages/aim_hi_webserver/package.json packages/aim_hi_webserver/package.json
@@ -32,7 +32,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ARG FILES_BASE_PATH=/var/lib/aim_hi/uploads
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 COPY packages/common/package.json packages/common/package.json
 COPY packages/knowledge_graph/package.json packages/knowledge_graph/package.json
 COPY packages/aim_hi_webserver/package.json packages/aim_hi_webserver/package.json
@@ -65,7 +65,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ARG FILES_BASE_PATH=/var/lib/aim_hi/uploads
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 COPY packages/job_queue/package.json packages/job_queue/package.json
 COPY packages/parser/package.json packages/parser/package.json
 COPY packages/db/package.json packages/db/package.json

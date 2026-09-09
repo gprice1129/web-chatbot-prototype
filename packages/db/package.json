@@ -2,6 +2,9 @@
   "name": "db",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
   "type": "module",
   "main": "./build/db.js",
   "types": "./build/db.d.ts",

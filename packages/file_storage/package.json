@@ -2,6 +2,9 @@
   "name": "file_storage",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
   "type": "module",
   "main": "./build/local-files.js",
   "types": "./build/local-files.d.ts",
