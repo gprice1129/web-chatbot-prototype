@@ -2,7 +2,15 @@
   "name": "web-chatbot-prototype",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/aim_hi_chatbot",
+    "packages/aim_hi_webserver",
+    "packages/common",
+    "packages/db",
+    "packages/file_storage",
+    "packages/job_queue",
+    "packages/knowledge_graph",
+    "packages/parser",
+    "packages/test"
   ],
   "scripts": {
     "build": "tsc -b",

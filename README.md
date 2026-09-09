@@ -22,6 +22,13 @@ config/
 npm install
 ```
 
+The frontend is not a root workspace. It installs and builds independently
+against its own lockfile, the same way its Docker stage does:
+
+```sh
+cd packages/aim_hi_fe && npm ci
+```
+
 ### 2. Configure environment and secrets
 
 Non-secret configuration is written in `config/docker/config.json` and rendered
