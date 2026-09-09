@@ -11,8 +11,8 @@
 //
 //   npm run file-upload -- --cases <chat-id> [base-url]
 //
-// The server must be running with APP_ENV=test, which seeds `testuser` and
-// configures the testing auth service to ignore the password. <chat-id> must
+// The server must be running with AUTH_MODE=mock, which seeds `testuser` and
+// configures the mock auth service to ignore the password. <chat-id> must
 // be a chat owned by `testuser` — typically obtained from `npm run chat-create`.
 
 import * as fs from "node:fs";

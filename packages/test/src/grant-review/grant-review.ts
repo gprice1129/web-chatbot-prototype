@@ -8,8 +8,8 @@
 //
 //   npm run grant-review -- <chat-id> [mode] [base-url]
 //
-// The server must be running with APP_ENV=test, which seeds `testuser` and
-// configures the testing auth service to ignore the password. <chat-id>
+// The server must be running with AUTH_MODE=mock, which seeds `testuser` and
+// configures the mock auth service to ignore the password. <chat-id>
 // must be a chat owned by `testuser` (typically from `npm run chat-create`)
 // that already has the required files uploaded with the right metadata:
 //

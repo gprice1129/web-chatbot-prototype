@@ -16,7 +16,7 @@
 //
 // The limiter is keyed by client IP and the limit applies BEFORE credentials
 // are checked, so this test does not depend on the auth outcome — both 200
-// (APP_ENV=test seeds `testuser`) and 401 count as "attempt reached the
+// (AUTH_MODE=mock seeds `testuser`) and 401 count as "attempt reached the
 // limiter". Anything else (e.g. 500) fails the test.
 //
 // Re-runnable: because the limit is per-window, a recent run may have already

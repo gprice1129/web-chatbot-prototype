@@ -6,3 +6,9 @@ build/
 *.tsbuildinfo
 packages/test/data/
 plan/**
+
+# The knowledge base corpus lives here for a fixed local path but is its own content set
+config/knowledge_base/
+
+# Machine-specific docker config, merged over config/docker/config.json
+config/docker/config.local.json

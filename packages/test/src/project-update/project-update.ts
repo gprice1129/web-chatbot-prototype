@@ -8,8 +8,8 @@
 //
 //   npm run project-update -- <project-id> <name> [base-url]
 //
-// The server must be running with APP_ENV=test, which seeds `testuser` and
-// configures the testing auth service to ignore the password. <project-id> must
+// The server must be running with AUTH_MODE=mock, which seeds `testuser` and
+// configures the mock auth service to ignore the password. <project-id> must
 // be a project owned by `testuser` — typically obtained from
 // `npm run project-create`.
 

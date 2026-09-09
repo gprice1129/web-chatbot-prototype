@@ -4,6 +4,8 @@ ARG FE_DIST_DIR=dist
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
+COPY packages/common/package.json packages/common/package.json
+COPY packages/knowledge_graph/package.json packages/knowledge_graph/package.json
 COPY packages/aim_hi_webserver/package.json packages/aim_hi_webserver/package.json
 COPY packages/aim_hi_chatbot/package.json packages/aim_hi_chatbot/package.json
 COPY packages/job_queue/package.json packages/job_queue/package.json
@@ -14,6 +16,8 @@ COPY packages/file_storage/package.json packages/file_storage/package.json
 RUN npm ci
 
 COPY tsconfig.json tsconfig.base.json ./
+COPY packages/common packages/common
+COPY packages/knowledge_graph packages/knowledge_graph
 COPY packages/aim_hi_webserver packages/aim_hi_webserver
 COPY packages/aim_hi_chatbot packages/aim_hi_chatbot
 COPY packages/job_queue packages/job_queue
@@ -29,11 +33,15 @@ ENV NODE_ENV=production
 ARG FILES_BASE_PATH=/var/lib/aim_hi/uploads
 
 COPY package.json package-lock.json ./
+COPY packages/common/package.json packages/common/package.json
+COPY packages/knowledge_graph/package.json packages/knowledge_graph/package.json
 COPY packages/aim_hi_webserver/package.json packages/aim_hi_webserver/package.json
 COPY packages/aim_hi_chatbot/package.json packages/aim_hi_chatbot/package.json
 COPY packages/job_queue/package.json packages/job_queue/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/file_storage/package.json packages/file_storage/package.json
+COPY --from=build /app/packages/common/build packages/common/build
+COPY --from=build /app/packages/knowledge_graph/build packages/knowledge_graph/build
 COPY --from=build /app/packages/aim_hi_webserver/build packages/aim_hi_webserver/build
 COPY --from=build /app/packages/aim_hi_chatbot/build packages/aim_hi_chatbot/build
 COPY --from=build /app/packages/job_queue/build packages/job_queue/build

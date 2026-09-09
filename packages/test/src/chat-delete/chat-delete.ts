@@ -6,8 +6,8 @@
 //
 //   npm run chat-delete -- <chat-id> [base-url]
 //
-// The server must be running with APP_ENV=test, which seeds `testuser` and
-// configures the testing auth service to ignore the password. <chat-id> must
+// The server must be running with AUTH_MODE=mock, which seeds `testuser` and
+// configures the mock auth service to ignore the password. <chat-id> must
 // be a chat owned by `testuser` — typically obtained from `npm run chat-create`.
 // Deleting cascades in the database to the chat's messages and file/project
 // link rows; a chat the user does not own (or already deleted) returns 404.

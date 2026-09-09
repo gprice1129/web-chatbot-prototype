@@ -5,7 +5,7 @@ End-to-end exercise of `POST /api/applications/grant_review`. Logs in as `testus
 ## Prerequisites
 
 - Webserver running and reachable (default `http://localhost:8080`).
-- Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
+- Server started with `AUTH_MODE=mock`, which seeds `testuser` and configures the mock auth service to ignore the password.
 - A chat id owned by `testuser` — typically from a prior `npm run chat-create` run.
 - The chat already has the required files uploaded (via `npm run file-upload`) with the right metadata:
   - rfa file: `metadata.role = "rfa"`
@@ -28,5 +28,5 @@ npm run grant-review -- <chat-id> [mode] [base-url]
 
 | Var        | Default      | Notes                                                            |
 | ---------- | ------------ | ---------------------------------------------------------------- |
-| `TEST_USERNAME` | `testuser`   | Seeded automatically when the server runs with `APP_ENV=test`.   |
+| `TEST_USERNAME` | `testuser`   | Seeded automatically when the server runs with `AUTH_MODE=mock`.   |
 | `TEST_PASSWORD` | `irrelevant` | The test auth service ignores the password for the seeded user. |

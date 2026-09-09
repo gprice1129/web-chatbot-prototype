@@ -23,6 +23,7 @@
     "grant-review": "node build/grant-review/grant-review.js",
     "grant-review-full": "node build/grant-review-full/grant-review-full.js",
     "ally": "node build/ally/ally.js",
+    "kg-tools": "node build/kg-tools/kg-tools.js",
     "login-rate-limit": "node build/login-rate-limit/login-rate-limit.js",
     "login-limits": "node build/login-limits/login-limits.js",
     "project-create": "node build/project-create/project-create.js",

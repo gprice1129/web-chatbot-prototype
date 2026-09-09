@@ -7,7 +7,7 @@
 //
 // What it checks, in four login attempts:
 //   * a within-limits credential is NOT rejected by the caps — it reaches the
-//     auth check (200 under APP_ENV=test, or 401 otherwise),
+//     auth check (200 under AUTH_MODE=mock, or 401 otherwise),
 //   * a username one char over the cap is rejected by validation (400),
 //   * a password one char over the cap is rejected by validation (400),
 //   * a request body larger than the body limit is rejected during parsing,
@@ -74,7 +74,7 @@ export async function login_limits(opts: LoginLimitsOptions): Promise<LoginLimit
   }
 
   // 1. A within-limits credential must NOT be rejected by the caps; it should
-  //    reach the auth check (200 under APP_ENV=test, 401 under real auth).
+  //    reach the auth check (200 under AUTH_MODE=mock, 401 under real auth).
   const within = await _login(opts.base_url, "testuser", "within-limits-password");
   _reject_if_rate_limited(within, "within-limits login");
   if (within.status !== 200 && within.status !== 401) {

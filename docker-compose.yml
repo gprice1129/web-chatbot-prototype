@@ -6,7 +6,9 @@ services:
       ANTHROPIC_BASE_URL_API_KEY_FILE: /run/secrets/anthropic_api_key
       FILES_BASE_PATH: ${FILES_BASE_PATH}
       COOKIE_KEY_FILE: /run/secrets/cookie_key
-      APP_ENV: ${APP_ENV:-production}
+      AUTH_MODE: ${AUTH_MODE:-real}
+      MODEL_MODE: ${MODEL_MODE:-real}
+      DEBUG_MODE: ${DEBUG_MODE:-false}
       TRUST_PROXY: ${TRUST_PROXY:-false}
       RATE_LIMIT_LOGIN_MAX: ${RATE_LIMIT_LOGIN_MAX:-5}
       RATE_LIMIT_LOGIN_WINDOW: "${RATE_LIMIT_LOGIN_WINDOW:-1 minute}"
@@ -30,6 +32,9 @@ services:
       MODEL_SUMMARY_THINKING: ${MODEL_SUMMARY_THINKING:-}
       MODEL_SUMMARY_CACHING: ${MODEL_SUMMARY_CACHING:-}
       MODEL_SUMMARY_MAX_TOKENS: ${MODEL_SUMMARY_MAX_TOKENS:-}
+      # Where the knowledge base is mounted (see volumes below). The app
+      # builds the chatbot's knowledge graph from it on startup.
+      KNOWLEDGE_BASE_PATH: /var/lib/aim_hi/knowledge_base
       PGHOST: postgres
       PGPORT: 5432
       PGUSER: ${APP_DB_USER}
@@ -60,6 +65,8 @@ services:
       start_period: 10s
     volumes:
       - uploads:${FILES_BASE_PATH}
+      # The markdown corpus on the host. Read-only: the app only reads it.
+      - ${KNOWLEDGE_BASE_ROOT:-./config/knowledge_base}:/var/lib/aim_hi/knowledge_base:ro
     mem_limit: 768m
     cpus: "1.0"
 

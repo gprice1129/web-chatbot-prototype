@@ -7,7 +7,7 @@ Unlike the grant reviewer, Ally is **conversational**: it replays the chat's pri
 ## Prerequisites
 
 - Webserver running and reachable (default `http://localhost:8080`).
-- Server started with `APP_ENV=test`, which seeds `testuser` and configures the testing auth service to ignore the password.
+- Server started with `AUTH_MODE=mock`, which seeds `testuser` and configures the mock auth service to ignore the password.
 - A chat id owned by `testuser` — typically from a prior `npm run chat-create` run.
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 
@@ -20,11 +20,11 @@ npm run build
 npm run ally -- <chat-id> [message] [base-url]
 ```
 
-With no `[message]`, the driver runs a short scripted conversation that exercises domain knowledge (UAB / Hugh Kaul), the grant-reviewer hand-off link (`/apps/grant-reviewer-standard`), and multi-turn memory (the final turn asks Ally to recall the earlier request). Pass an explicit `[message]` to send a single turn instead. `base-url` defaults to `http://localhost:8080`. Pass a full URL (e.g. `https://localhost`) to target a TLS frontend.
+With no `[message]`, the driver runs a short scripted conversation that exercises domain knowledge (UAB / Hugh Kaul), the grant-reviewer hand-off link (`/apps/grant-reviewer`), and multi-turn memory (the final turn asks Ally to recall the earlier request). Pass an explicit `[message]` to send a single turn instead. `base-url` defaults to `http://localhost:8080`. Pass a full URL (e.g. `https://localhost`) to target a TLS frontend.
 
 ## Env overrides
 
 | Var        | Default      | Notes                                                            |
 | ---------- | ------------ | ---------------------------------------------------------------- |
-| `TEST_USERNAME` | `testuser`   | Seeded automatically when the server runs with `APP_ENV=test`.   |
+| `TEST_USERNAME` | `testuser`   | Seeded automatically when the server runs with `AUTH_MODE=mock`.   |
 | `TEST_PASSWORD` | `irrelevant` | The test auth service ignores the password for the seeded user. |
