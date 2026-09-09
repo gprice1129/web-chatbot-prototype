@@ -7,7 +7,7 @@ import {
 } from "#lib/config.js";
 
 const RUNNER_ENV: Record<string, string> = {
-  CODE_EXEC_RUNNER_IMAGE: "aim-hi-code-runner-python:3.13",
+  CODE_EXEC_RUNNER_IMAGE: "code-runner-python:3.13",
   CODE_EXEC_TIMEOUT_MS: "10000",
   CODE_EXEC_MAX_OUTPUT_BYTES: "262144",
   CODE_EXEC_MEMORY_MB: "256",
@@ -44,7 +44,7 @@ function with_env(vars: Record<string, string | undefined>, fn: () => void): voi
 test("resolves a full runner config", () => {
   with_env(RUNNER_ENV, () => {
     assert.deepEqual(resolve_runner_config(), {
-      image: "aim-hi-code-runner-python:3.13",
+      image: "code-runner-python:3.13",
       runtime: undefined,
       timeout_ms: 10000,
       max_output_bytes: 262144,

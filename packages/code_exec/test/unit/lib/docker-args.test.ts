@@ -9,7 +9,7 @@ import {
 } from "#lib/docker-args.js";
 
 const CFG: RunnerConfig = {
-  image: "aim-hi-code-runner-python:3.13",
+  image: "code-runner-python:3.13",
   runtime: undefined,
   timeout_ms: 10000,
   max_output_bytes: 262144,
@@ -25,7 +25,7 @@ test("renders the full hardened run argv", () => {
   assert.deepEqual(build_run_argv(CFG, "code-exec-abc", "cHJpbnQoKQ=="), [
     "run", "--rm", "-i",
     "--name", "code-exec-abc",
-    "--label", "aim-hi-code-exec=1",
+    "--label", "code-exec=1",
     "--pull", "never",
     "--init",
     "--network", "none",
@@ -41,7 +41,7 @@ test("renders the full hardened run argv", () => {
     "--cpus", "1.0",
     "--stop-timeout", "2",
     "-e", "CODE_B64=cHJpbnQoKQ==",
-    "aim-hi-code-runner-python:3.13",
+    "code-runner-python:3.13",
   ]);
 });
 
@@ -60,7 +60,7 @@ test("kill targets the container by name", () => {
 
 test("sweep lists all containers with the runner label", () => {
   assert.deepEqual(build_sweep_ps_argv(),
-    ["ps", "-aq", "--filter", "label=aim-hi-code-exec=1"]);
+    ["ps", "-aq", "--filter", "label=code-exec=1"]);
 });
 
 test("rm force-removes the given ids", () => {
