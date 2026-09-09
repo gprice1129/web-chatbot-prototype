@@ -1,16 +1,16 @@
 export { ApplicationDbService };
 
-import * as pg from "pg";
+import type { Executor } from "./transaction.js";
 import type { Application } from "./types.js";
 
 class ApplicationDbService {
-  private _pool: pg.Pool;
-  constructor(pool: pg.Pool) {
-    this._pool = pool;
+  private _exec: Executor;
+  constructor(exec: Executor) {
+    this._exec = exec;
   }
 
   async list_enabled_applications(): Promise<Application[]> {
-    const result = await this._pool.query(
+    const result = await this._exec.query(
       "SELECT id, slug, name, description FROM applications WHERE enabled ORDER BY created_at");
     return result.rows;
   }

@@ -1,13 +1,13 @@
 export { FileDbService };
 
 import assert from "node:assert";
-import * as pg from "pg";
+import type { Executor } from "./transaction.js";
 import type { File, FileStatus } from "./types.js";
 
 class FileDbService {
-  private _pool: pg.Pool;
-  constructor(pool: pg.Pool) {
-    this._pool = pool;
+  private _exec: Executor;
+  constructor(exec: Executor) {
+    this._exec = exec;
   }
 
   async create_file_if_absent(
@@ -26,7 +26,7 @@ class FileDbService {
   ): Promise<{ file: File; created: boolean }> {
     // Single CTE so the file insert, the dedup fallback, and the chat_files
     // attachment all land atomically.
-    const result = await this._pool.query(
+    const result = await this._exec.query(
       `WITH ins AS (
          INSERT INTO files (id, user_id, original_filename, mime_type, size_bytes,
                             checksum_sha256, storage_backend, storage_key, status,
@@ -63,13 +63,13 @@ class FileDbService {
     status: FileStatus,
     parse_error: string | null = null
   ): Promise<void> {
-    await this._pool.query(
+    await this._exec.query(
       "UPDATE files SET status = $2, parse_error = $3 WHERE id = $1",
       [file_id, status, parse_error]);
   }
 
   async get_chat_files(chat_id: string, user_id: string): Promise<File[]> {
-    const result = await this._pool.query(
+    const result = await this._exec.query(
       `SELECT f.*
        FROM files f
        JOIN chat_files cf ON cf.file_id = f.id
@@ -91,7 +91,7 @@ class FileDbService {
     file_ids: string[], chat_id: string, user_id: string
   ): Promise<File[]> {
     if (file_ids.length === 0) return [];
-    const result = await this._pool.query(
+    const result = await this._exec.query(
       `SELECT f.* FROM files f
          JOIN chat_files cf ON cf.file_id = f.id
         WHERE f.id = ANY($1::uuid[])

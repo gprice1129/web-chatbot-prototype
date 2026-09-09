@@ -1,11 +1,11 @@
 export { MemoryDbService };
 
-import * as pg from "pg";
+import type { Executor } from "./transaction.js";
 
 class MemoryDbService {
-  private _pool: pg.Pool;
-  constructor(pool: pg.Pool) {
-    this._pool = pool;
+  private _exec: Executor;
+  constructor(exec: Executor) {
+    this._exec = exec;
   }
 
   async upsert_chat_memory(
@@ -15,7 +15,7 @@ class MemoryDbService {
     source_through: Date,
     kind: string = "summary",
   ): Promise<void> {
-    await this._pool.query(
+    await this._exec.query(
       `INSERT INTO chat_memories (chat_id, user_id, kind, content, source_through)
        SELECT $1, $2, $5, $3, $4
        WHERE EXISTS (SELECT 1 FROM chats WHERE id = $1 AND user_id = $2)
@@ -30,7 +30,7 @@ class MemoryDbService {
   async get_stale_summary_chats(
     limit: number
   ): Promise<{ chat_id: string; user_id: string }[]> {
-    const result = await this._pool.query(
+    const result = await this._exec.query(
       `SELECT c.id AS chat_id, c.user_id
          FROM chats c
          JOIN LATERAL (
@@ -53,7 +53,7 @@ class MemoryDbService {
   async get_sibling_summaries(
     chat_id: string, user_id: string
   ): Promise<{ chat_id: string; title: string; summary: string }[]> {
-    const result = await this._pool.query(
+    const result = await this._exec.query(
       `SELECT sib.id AS chat_id, sib.title, mem.content AS summary
          FROM project_chats active_pc
          JOIN projects p
