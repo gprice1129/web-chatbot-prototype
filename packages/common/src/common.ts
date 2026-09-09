@@ -7,6 +7,10 @@ export type {
 } from "#common/result.js";
 
 export {
+  ok_or_throw,
+} from "#common/result.js";
+
+export {
   separate_frontmatter,
   parse_frontmatter,
 } from "#common/frontmatter.js";

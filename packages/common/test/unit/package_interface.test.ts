@@ -14,6 +14,7 @@ describe("the common package interface", () => {
       "is_number",
       "is_object",
       "is_string",
+      "ok_or_throw",
       "parse_boolean",
       "parse_frontmatter",
       "parse_positive_int",
