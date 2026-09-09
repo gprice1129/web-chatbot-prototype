@@ -8,6 +8,7 @@
     { "path": "./packages/file_storage" },
     { "path": "./packages/job_queue" },
     { "path": "./packages/aim_hi_webserver" },
-    { "path": "./packages/parser" }
+    { "path": "./packages/parser" },
+    { "path": "./packages/code_exec" }
   ]
 }

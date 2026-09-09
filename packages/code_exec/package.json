@@ -1,0 +1,41 @@
+{
+  "name": "code_exec",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
+  "type": "module",
+  "main": "./build/exec-api.js",
+  "types": "./build/exec-api.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/exec-api.d.ts",
+      "default": "./build/exec-api.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "tsc -b"
+  },
+  "dependencies": {
+    "@fastify/type-provider-typebox": "^6.1.0",
+    "@sinclair/typebox": "^0.34.48",
+    "common": "*",
+    "fastify": "^5.8.2",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0"
+  },
+  "imports": {
+    "#src/*": "./build/*",
+    "#lib/*": "./build/lib/*",
+    "#hook/*": "./build/hook/*",
+    "#plugin/*": "./build/plugin/*",
+    "#route/*": "./build/route/*"
+  }
+}
