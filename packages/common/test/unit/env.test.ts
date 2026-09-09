@@ -5,40 +5,42 @@ import { parse_boolean, parse_positive_int } from "common";
 
 describe("parse_boolean", () => {
   it("reads unset or blank as the fallback", () => {
-    assert.equal(parse_boolean("DEBUG_MODE", undefined, false), false);
-    assert.equal(parse_boolean("DEBUG_MODE", "  ", true), true);
+    assert.deepEqual(parse_boolean(undefined, false), { ok: true, value: false });
+    assert.deepEqual(parse_boolean("  ", true), { ok: true, value: true });
   });
 
   it("reads true and false, ignoring surrounding whitespace", () => {
-    assert.equal(parse_boolean("DEBUG_MODE", "true", false), true);
-    assert.equal(parse_boolean("DEBUG_MODE", " false ", true), false);
+    assert.deepEqual(parse_boolean("true", false), { ok: true, value: true });
+    assert.deepEqual(parse_boolean(" false ", true), { ok: true, value: false });
   });
 
-  it("refuses anything else, naming the variable", () => {
-    assert.throws(
-      () => parse_boolean("DEBUG_MODE", "yes", false),
-      /DEBUG_MODE must be true or false, got "yes"/);
+  it("fails on anything else, quoting what it got", () => {
+    const read = parse_boolean("yes", false);
+    assert.equal(read.ok, false);
+    assert.match(read.ok ? "" : read.error, /expected true or false, got "yes"/);
   });
 });
 
 describe("parse_positive_int", () => {
   it("reads a positive integer", () => {
-    assert.equal(parse_positive_int("RATE_LIMIT_LOGIN_MAX", "5"), 5);
+    assert.deepEqual(parse_positive_int("5"), { ok: true, value: 5 });
   });
 
-  it("refuses unset or blank, naming the variable", () => {
-    assert.throws(
-      () => parse_positive_int("RATE_LIMIT_LOGIN_MAX", undefined),
-      /RATE_LIMIT_LOGIN_MAX is required/);
-    assert.throws(() => parse_positive_int("RATE_LIMIT_LOGIN_MAX", "  "),
-      /RATE_LIMIT_LOGIN_MAX is required/);
+  it("fails on unset or blank", () => {
+    for (const raw of [undefined, "  "]) {
+      const read = parse_positive_int(raw);
+      assert.equal(read.ok, false, `for ${JSON.stringify(raw)}`);
+      assert.match(read.ok ? "" : read.error, /expected a positive integer/);
+    }
   });
 
-  it("refuses zero, negatives, fractions and text", () => {
+  it("fails on zero, negatives, fractions and text, quoting what it got", () => {
     for (const raw of ["0", "-3", "1.5", "many"]) {
-      assert.throws(
-        () => parse_positive_int("RATE_LIMIT_LOGIN_MAX", raw),
-        /RATE_LIMIT_LOGIN_MAX must be a positive integer/,
+      const read = parse_positive_int(raw);
+      assert.equal(read.ok, false, `for "${raw}"`);
+      assert.match(
+        read.ok ? "" : read.error,
+        new RegExp(`expected a positive integer, got "${raw}"`),
         `for "${raw}"`);
     }
   });
