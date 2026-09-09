@@ -23,3 +23,8 @@ export {
   is_boolean,
   is_missing,
 } from "#common/type-checker.js";
+
+export {
+  parse_boolean,
+  parse_positive_int,
+} from "#common/env.js";
