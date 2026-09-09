@@ -51,6 +51,7 @@ const SHAPE = {
   app: {
     auth_mode: "AUTH_MODE",
     model_mode: "MODEL_MODE",
+    debug_mode: "DEBUG_MODE",
     files_base_path: required("FILES_BASE_PATH"),
     trust_proxy: "TRUST_PROXY",
   },

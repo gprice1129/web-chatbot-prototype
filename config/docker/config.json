@@ -10,6 +10,7 @@
   "app": {
     "auth_mode": "real",
     "model_mode": "real",
+    "debug_mode": false,
     "files_base_path": "/var/lib/aim_hi/uploads",
     "trust_proxy": false
   },
