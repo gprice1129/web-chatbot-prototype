@@ -3,19 +3,21 @@
 // Ally carries two tools: kg_search (node summaries for a query) and kg_get
 // (whole nodes by id). Nothing in these turns tells the model to use them. The
 // turns are what a researcher might type, and the test checks whether the
-// model reaches for the tools on its own. The API returns only Ally's final
-// text, so each reply is checked for what only the corpus could have supplied:
-// the node's own phrasing, its name when asked where the guidance came from,
-// and a "no" for a topic the corpus does not cover.
+// model reaches for the tools on its own.
+//
+// With DEBUG_MODE=true the server returns a `debug` trace beside each reply:
+// the model rounds, every tool call with its input and result, and the tokens
+// spent. The assertions read that trace. A failure means the model did not
+// make the tool call the turn needed, not that it phrased its answer
+// differently.
 //
 //   npm run kg-tools -- [base-url]
 //
 // The server must be running with AUTH_MODE=mock, which seeds `testuser` and
-// configures the mock auth service to ignore the password, and with
-// MODEL_MODE=real: the mock model never calls tools, so there is nothing to
-// observe under it. The knowledge base must be the project corpus, which holds
-// the node `hallucinated-citations` ("Fabricated citations"). The test creates
-// its own chat and deletes it afterwards.
+// configures the mock auth service to ignore the password; with
+// MODEL_MODE=real, since the mock model never calls tools; and with
+// DEBUG_MODE=true. The knowledge base must be the project corpus. The test
+// creates its own chat and deletes it afterwards.
 
 // Match `curl -k` for the local self-signed cert. Set before any fetch so
 // undici picks it up when the global dispatcher is created.
@@ -27,39 +29,59 @@ interface KgToolsOptions {
   password: string;
 }
 
-// One scripted turn and what its reply must contain.
+// One tool call as the server reports it.
+interface TraceToolCall {
+  round: number;
+  name: string;
+  input: Record<string, unknown>;
+  ok: boolean;
+  result: string;
+}
+
+// What happened behind one reply.
+interface Trace {
+  rounds: number;
+  tool_calls: TraceToolCall[];
+  usage: { input_tokens: number; output_tokens: number };
+}
+
+interface AllyReply {
+  message: string[];
+  debug?: Trace;
+}
+
+// One scripted turn and the tool activity its reply must show.
 interface Turn {
   message: string;
-  expect: RegExp[];
+  check: (trace: Trace) => boolean;
   why: string;
 }
 
-// Phrasing from the body of the `hallucinated-citations` node that general
-// knowledge would not produce. Only kg_get returns bodies.
-const NODE_PHRASING = /well-formed|on-the-nose|obscure/i;
+// The tool calls of `name` that succeeded.
+function successful(trace: Trace, name: string): TraceToolCall[] {
+  return trace.tool_calls.filter((call) => call.name === name && call.ok);
+}
 
 const TURNS: Turn[] = [
   {
     message:
       "An AI tool gave me a list of references for a grant proposal I'm "
       + "writing. How can I tell whether they're real?",
-    expect: [/DOI/, /knowledge base/i, NODE_PHRASING],
-    why: "a grounded answer credits the knowledge base and uses the node's own wording",
+    check: (trace) => successful(trace, "kg_search").length > 0
+      && successful(trace, "kg_get").length > 0,
+    why: "a question about an AI risk should be answered from the corpus: search, then open a node",
   },
   {
-    message: "Where is that guidance from?",
-    expect: [/knowledge base/i],
-    why: "asked for provenance, a grounded answer names the knowledge base",
+    message: "Can I paste patient notes into ChatGPT to get a quick summary?",
+    check: (trace) => successful(trace, "kg_search").length > 0
+      && successful(trace, "kg_get").length > 0,
+    why: "a policy question must be answered from the policy node, not from general knowledge",
   },
   {
-    message: "What's the single quickest check I can do on one citation?",
-    expect: [/doi\.org|well-formed but dead/i],
-    why: "this phrasing is in the node body, which only kg_get returns",
-  },
-  {
-    message: "Do you have anything on quantum chromodynamics?",
-    expect: [/\b(no|nothing|not|don't|doesn't|isn't|outside|beyond)\b/i],
-    why: "a topic the corpus lacks should be declined, not invented",
+    message: "Is there any guidance on using AI to analyze flow cytometry data?",
+    check: (trace) => successful(trace, "kg_search").some((call) =>
+      /cytometry/i.test(String(call.input["query"]))),
+    why: "a topic that might be covered must be checked in the corpus, not guessed at",
   },
 ];
 
@@ -105,9 +127,9 @@ async function delete_chat(base_url: string, cookie: string, chat_id: string): P
   }
 }
 
-// Send one message to Ally and return the reply's text blocks.
+// Send one message to Ally and return the reply with its trace.
 async function ask(
-    base_url: string, cookie: string, chat_id: string, message: string): Promise<string[]> {
+    base_url: string, cookie: string, chat_id: string, message: string): Promise<AllyReply> {
   const res = await fetch(`${base_url}/api/applications/ally`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Cookie: cookie },
@@ -115,23 +137,37 @@ async function ask(
   });
   const body = await res.text();
   if (res.status !== 200) throw new Error(`Ally failed (HTTP ${res.status}): ${body}`);
-  return (JSON.parse(body) as { message: string[] }).message;
+  return JSON.parse(body) as AllyReply;
 }
 
-// Run the scripted turns, failing on the first reply that lacks what its tool
-// call must have supplied.
+// The trace as one line per tool call, for reading alongside the reply.
+function describe_trace(trace: Trace): string {
+  const lines = [
+    `[rounds: ${trace.rounds}; tokens in/out: `
+    + `${trace.usage.input_tokens}/${trace.usage.output_tokens}]`,
+  ];
+  for (const call of trace.tool_calls) {
+    const outcome = call.ok ? "ok" : `error: ${call.result}`;
+    lines.push(`  round ${call.round}: ${call.name}(${JSON.stringify(call.input)}) -> ${outcome}`);
+  }
+  return lines.join("\n");
+}
+
+// Run the scripted turns, failing on the first whose trace lacks the tool
+// call the turn needed.
 export async function kg_tools(opts: KgToolsOptions): Promise<void> {
   const cookie = await login(opts);
   const chat_id = await create_chat(opts.base_url, cookie);
   try {
     for (const turn of TURNS) {
-      const reply = (await ask(opts.base_url, cookie, chat_id, turn.message)).join("\n");
-      console.log(`\n> ${turn.message}\n\n${reply}`);
-      for (const pattern of turn.expect) {
-        if (pattern.test(reply)) continue;
-        throw new Error(
-          `Reply did not match ${pattern} (${turn.why}).\nReply was:\n${reply}`);
+      const reply = await ask(opts.base_url, cookie, chat_id, turn.message);
+      if (undefined === reply.debug) {
+        throw new Error("The server returned no debug trace. Start it with DEBUG_MODE=true.");
       }
+      console.log(`\n> ${turn.message}\n\n${reply.message.join("\n")}\n`);
+      console.log(describe_trace(reply.debug));
+      if (turn.check(reply.debug)) continue;
+      throw new Error(`Expected tool activity missing: ${turn.why}.`);
     }
   } finally {
     await delete_chat(opts.base_url, cookie, chat_id);
@@ -145,5 +181,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     username: process.env.TEST_USERNAME ?? "testuser",
     password: process.env.TEST_PASSWORD ?? "irrelevant",
   });
-  console.log("\nkg-tools: all turns matched");
+  console.log("\nkg-tools: every turn made the tool calls it needed");
 }
