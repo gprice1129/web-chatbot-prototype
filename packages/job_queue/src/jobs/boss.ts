@@ -5,17 +5,8 @@ export type {
   PgBoss,
 }
 
-import * as fs from "node:fs";
 import PgBoss from "pg-boss";
-
-// Resolve a secret from either NAME (a plaintext env var) or NAME_FILE (a path to a file holding the value)
-function read_secret(name: string): string | undefined {
-  const direct = process.env[name];
-  if (undefined !== direct && "" !== direct) return direct;
-  const file = process.env[`${name}_FILE`];
-  if (file) return fs.readFileSync(file, "utf8").trim();
-  return undefined;
-}
+import { read_secret } from "common";
 
 // TODO:[jobs] guard pg-boss bootstrap with a postgres advisory lock so multiple
 // processes do not race the schema migrations / queue creation. today the

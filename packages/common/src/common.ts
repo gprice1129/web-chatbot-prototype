@@ -32,3 +32,7 @@ export {
   parse_boolean,
   parse_positive_int,
 } from "#common/env.js";
+
+export {
+  read_secret,
+} from "#common/secret.js";

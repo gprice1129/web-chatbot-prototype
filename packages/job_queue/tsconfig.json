@@ -7,5 +7,8 @@
     "rootDir": "./src",
     "outDir": "./build"
   },
+  "references": [
+    { "path": "../common" }
+  ],
   "include": ["src/**/*.ts"]
 }

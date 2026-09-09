@@ -18,6 +18,7 @@ describe("the common package interface", () => {
       "parse_boolean",
       "parse_frontmatter",
       "parse_positive_int",
+      "read_secret",
       "separate_frontmatter",
     ]);
   });

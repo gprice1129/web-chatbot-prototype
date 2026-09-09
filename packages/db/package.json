@@ -25,6 +25,7 @@
   "dependencies": {
     "@types/node": "^25.5.0",
     "@types/pg": "^8.20.0",
+    "common": "*",
     "pg": "^8.20.0",
     "typescript": "^5.9.3"
   }

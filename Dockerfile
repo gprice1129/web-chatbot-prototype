@@ -66,10 +66,12 @@ ENV NODE_ENV=production
 ARG FILES_BASE_PATH=/var/lib/aim_hi/uploads
 
 COPY package.json package-lock.json .npmrc ./
+COPY packages/common/package.json packages/common/package.json
 COPY packages/job_queue/package.json packages/job_queue/package.json
 COPY packages/parser/package.json packages/parser/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/file_storage/package.json packages/file_storage/package.json
+COPY --from=build /app/packages/common/build packages/common/build
 COPY --from=build /app/packages/job_queue/build packages/job_queue/build
 COPY --from=build /app/packages/parser/build packages/parser/build
 COPY --from=build /app/packages/db/build packages/db/build
