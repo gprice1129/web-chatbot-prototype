@@ -13,14 +13,27 @@ type Result<T, E = string> =
 /*
  * Idea: Captures the pattern of throwing on a failed result
  *
- * (Result<T>, string?) => T
+ * (Result<T, E>, string?) => T
  * Pure
  * Public
  */
-function ok_or_throw<T>(read: Result<T>, context?: string): T {
+function ok_or_throw<T, E>(read: Result<T, E>, context?: string): T {
   if (!read.ok) {
-    if (undefined === context) throw new Error(read.error);
-    throw new Error(`${context}: ${read.error}`);
+    const message = _render_error(read.error);
+    if (undefined === context) throw new Error(message);
+    throw new Error(`${context}: ${message}`);
   }
   return read.value;
+}
+
+/*
+ * Idea: A string error already is the message; anything else is serialized.
+ *
+ * (unknown) => string
+ * Pure
+ * Private
+ */
+function _render_error(error: unknown): string {
+  if (typeof error === "string") return error;
+  return JSON.stringify(error) ?? String(error);
 }

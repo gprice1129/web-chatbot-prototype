@@ -25,4 +25,20 @@ describe("ok_or_throw", () => {
     const read: Result<number> = { ok: true, value: 8 };
     assert.equal(ok_or_throw(read, "LOGIN_BODY_LIMIT"), 8);
   });
+
+  it("serializes a structured error", () => {
+    const read: Result<number, { kind: string; message: string }> =
+      { ok: false, error: { kind: "docker_error", message: "no such image" } };
+    assert.throws(
+      () => ok_or_throw(read),
+      /{"kind":"docker_error","message":"no such image"}/);
+  });
+
+  it("prefixes a structured error with the context", () => {
+    const read: Result<number, { kind: string }> =
+      { ok: false, error: { kind: "spawn_failure" } };
+    assert.throws(
+      () => ok_or_throw(read, "runner"),
+      /runner: {"kind":"spawn_failure"}/);
+  });
 });
