@@ -7,3 +7,9 @@
 [submodule "packages/aim_hi_fe"]
 	path = packages/aim_hi_fe
 	url = git@github.com:dnsmith124/aim-hi-fe.git
+[submodule "aim_hi_static"]
+	path = aim_hi_static
+	url = git@github.com:gprice1129/aim_hi_static.git
+[submodule "packages/static"]
+	path = packages/static
+	url = git@github.com:gprice1129/aim_hi_static.git
