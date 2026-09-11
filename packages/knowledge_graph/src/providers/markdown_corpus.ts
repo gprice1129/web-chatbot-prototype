@@ -8,6 +8,7 @@ import * as path from "node:path";
 import {
   read_markdown,
   find_markdown,
+  list_files,
   ok_or_throw,
   type Result,
   type FrontmatterValue,
@@ -69,7 +70,7 @@ import {
  */
 async function load_markdown_corpus(
     root: string, on_warning: (warning: string) => void): Promise<GraphNode[]> {
-  const files = ok_or_throw(await find_markdown(root, { recursive: true }), root);
+  const files = list_files(ok_or_throw(await find_markdown(root), root));
   const nodes: GraphNode[] = [];
   // The value is the file that claimed an id first, so a duplicate can name it.
   const id_to_file = new Map<string, string>();

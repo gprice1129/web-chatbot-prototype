@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 
-import { read_markdown, find_markdown } from "common";
+import { read_markdown, find_markdown, list_files } from "common";
 
 // Materialize `files` under a fresh temp directory, run the test, clean up.
 async function with_tree(
@@ -52,20 +52,20 @@ describe("read_markdown", () => {
 });
 
 describe("find_markdown", () => {
-  it("lists only markdown documents, descending when asked", async () => {
+  it("keeps only markdown documents, in the shape they were found in", async () => {
     await with_tree({ "a.md": "", "notes.txt": "", "sub/b.md": "" }, async (dir) => {
-      const flat = await find_markdown(dir);
-      assert.deepEqual(flat, { ok: true, value: [path.join(dir, "a.md")] });
-      const deep = await find_markdown(dir, { recursive: true });
-      assert.deepEqual(deep, {
-        ok: true,
-        value: [path.join(dir, "a.md"), path.join(dir, "sub", "b.md")],
-      });
+      const found = await find_markdown(dir);
+      assert.ok(found.ok);
+      assert.deepEqual(found.value.files, [path.join(dir, "a.md")]);
+      assert.deepEqual(Object.keys(found.value.subtrees), ["sub"]);
+      assert.deepEqual(list_files(found.value), [
+        path.join(dir, "a.md"), path.join(dir, "sub", "b.md"),
+      ]);
     });
   });
 
   it("reads a missing directory as empty when it is optional", async () => {
     const found = await find_markdown(MISSING, { optional: true });
-    assert.deepEqual(found, { ok: true, value: [] });
+    assert.deepEqual(found, { ok: true, value: { dir: MISSING, files: [], subtrees: {} } });
   });
 });

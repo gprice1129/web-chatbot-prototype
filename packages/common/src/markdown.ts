@@ -7,7 +7,12 @@ export type {
 }
 
 import type { Result } from "#common/result.js";
-import { read_text, find_files, type FindOptions } from "#common/file.js";
+import {
+  read_text,
+  find_files,
+  type FindOptions,
+  type FileTree
+} from "#common/file.js";
 import {
   separate_frontmatter,
   parse_frontmatter,
@@ -54,13 +59,16 @@ async function read_markdown(file: string): Promise<Result<MarkdownDocument>> {
 }
 
 /*
- * Idea: The markdown documents under a directory, in a fixed order.
+ * Idea: The markdown documents under a directory, kept in the shape they were
+ * found in.
  *
- * (string, Omit<FindOptions, "extension">?) => Result<string[]>
+ * (string, Omit<FindOptions, "extension">?) => Result<FileTree>
  * Side Effect: reads the filesystem
  * Public
  */
 async function find_markdown(
-    dir: string, options: Omit<FindOptions, "extension"> = {}): Promise<Result<string[]>> {
+    dir: string,
+    options: Omit<FindOptions, "extension"> = {}): Promise<Result<FileTree>> {
   return find_files(dir, { ...options, extension: ".md" });
 }
+

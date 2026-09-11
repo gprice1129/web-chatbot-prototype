@@ -42,10 +42,12 @@ export {
 export {
   read_text,
   find_files,
+  list_files,
 } from "#common/file.js";
 
 export type {
   FindOptions,
+  FileTree,
 } from "#common/file.js";
 
 export {

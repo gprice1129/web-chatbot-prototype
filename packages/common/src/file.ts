@@ -1,9 +1,11 @@
 export {
   read_text,
   find_files,
+  list_files,
 }
 export type {
   FindOptions,
+  FileTree,
 }
 
 import * as fs from "node:fs/promises";
@@ -46,49 +48,74 @@ async function read_text(file: string): Promise<Result<string>> {
 }
 
 /*
- * Idea: What to look for, how far to look, and whether there must be anywhere
- * to look.
+ * Idea: What to look for, and whether there must be anywhere to look.
  *
- * `optional` reads a missing directory as holding no files.
+ * `optional` reads a missing directory as holding nothing.
  */
 interface FindOptions {
   extension?: string;
-  recursive?: boolean;
   optional?: boolean;
 }
 
 /*
- * Idea: The files under a directory, in a fixed order.
+ * Idea: A directory as found: the files in it, and the directories in it as
+ * trees of their own.
  *
- * (string, FindOptions?) => Result<string[]>
- * Paths are relative or absolute according to the directory they were found
- * from.
+ * Files are full paths, relative or absolute according to the directory they
+ * were found from. Subtrees are keyed by directory name.
+ */
+interface FileTree {
+  dir: string;
+  files: string[];
+  subtrees: Record<string, FileTree>;
+}
+
+/*
+ * Idea: Everything under a directory, kept in the shape it was found in.
+ *
+ * (string, FindOptions?) => Result<FileTree>
+ * Entries are visited in name order, so two readings of one directory agree.
  * Side Effect: reads the filesystem
  * Public
  */
 async function find_files(
-    dir: string, options: FindOptions = {}): Promise<Result<string[]>> {
+    dir: string, options: FindOptions = {}): Promise<Result<FileTree>> {
+  const tree: FileTree = { dir, files: [], subtrees: {} };
   let entries: Dirent[];
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
   } catch (err) {
-    if (true === options.optional && _is_missing(err)) return { ok: true, value: [] };
+    if (true === options.optional && _is_missing(err)) return { ok: true, value: tree };
     return { ok: false, error: `unreadable (${_reason(err)})` };
   }
-  const found: string[] = [];
+  entries.sort((a, b) => a.name.localeCompare(b.name));
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory() && true === options.recursive) {
-      const below = await find_files(full, options);
-      if (!below.ok) return below;
-      found.push(...below.value);
-      continue;
-    }
-    if (entry.isFile() && _has_extension(entry.name, options.extension)) {
-      found.push(full);
+    if (entry.isDirectory()) {
+      const below = await find_files(full, { extension: options.extension });
+      if (!below.ok) return { ok: false, error: `${entry.name}: ${below.error}` };
+      tree.subtrees[entry.name] = below.value;
+    } else if (entry.isFile() && _has_extension(entry.name, options.extension)) {
+      tree.files.push(full);
     }
   }
-  return { ok: true, value: found.sort() };
+  return { ok: true, value: tree };
+}
+
+/*
+ * Idea: A tree flattened to the files it holds, at any depth.
+ *
+ * (FileTree) => string[]
+ * Sorted by path, so the order does not depend on how the tree was walked.
+ * Pure
+ * Public
+ */
+function list_files(tree: FileTree): string[] {
+  const found = [...tree.files];
+  for (const subtree of Object.values(tree.subtrees)) {
+    found.push(...list_files(subtree));
+  }
+  return found.sort();
 }
 
 /*

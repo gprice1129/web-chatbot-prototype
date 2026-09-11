@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 
-import { read_text, find_files } from "common";
+import { read_text, find_files, list_files } from "common";
 
 // Materialize `files` under a fresh temp directory, run the test, clean up.
 async function with_tree(
@@ -48,35 +48,40 @@ describe("find_files", () => {
     "a.md": "",
     "notes.txt": "",
     "sub/c.md": "",
+    "sub/deeper/d.md": "",
   };
 
-  it("lists the files in one directory, sorted", async () => {
+  it("keeps the directory shape, with files in name order", async () => {
     await with_tree(TREE, async (dir) => {
       const found = await find_files(dir);
+      const sub = path.join(dir, "sub");
+      const deeper = path.join(sub, "deeper");
       assert.deepEqual(found, {
         ok: true,
-        value: ["a.md", "b.md", "notes.txt"].map((name) => path.join(dir, name)),
+        value: {
+          dir,
+          files: ["a.md", "b.md", "notes.txt"].map((name) => path.join(dir, name)),
+          subtrees: {
+            sub: {
+              dir: sub,
+              files: [path.join(sub, "c.md")],
+              subtrees: {
+                deeper: { dir: deeper, files: [path.join(deeper, "d.md")], subtrees: {} },
+              },
+            },
+          },
+        },
       });
     });
   });
 
-  it("keeps only files with the asked-for extension", async () => {
+  it("keeps only files with the asked-for extension, at every depth", async () => {
     await with_tree(TREE, async (dir) => {
       const found = await find_files(dir, { extension: ".md" });
-      assert.deepEqual(found, {
-        ok: true,
-        value: ["a.md", "b.md"].map((name) => path.join(dir, name)),
-      });
-    });
-  });
-
-  it("descends into subdirectories when asked", async () => {
-    await with_tree(TREE, async (dir) => {
-      const found = await find_files(dir, { extension: ".md", recursive: true });
-      assert.deepEqual(found, {
-        ok: true,
-        value: ["a.md", "b.md", "sub/c.md"].map((name) => path.join(dir, name)),
-      });
+      assert.ok(found.ok);
+      assert.deepEqual(list_files(found.value), [
+        "a.md", "b.md", "sub/c.md", "sub/deeper/d.md",
+      ].map((name) => path.join(dir, name)));
     });
   });
 
@@ -89,6 +94,17 @@ describe("find_files", () => {
 
   it("reads a missing directory as empty when it is optional", async () => {
     const found = await find_files(MISSING, { optional: true });
-    assert.deepEqual(found, { ok: true, value: [] });
+    assert.deepEqual(found, { ok: true, value: { dir: MISSING, files: [], subtrees: {} } });
+  });
+});
+
+describe("list_files", () => {
+  it("flattens a tree to its files sorted by path", () => {
+    const tree = {
+      dir: "r",
+      files: ["r/z.md", "r/a.md"],
+      subtrees: { m: { dir: "r/m", files: ["r/m/b.md"], subtrees: {} } },
+    };
+    assert.deepEqual(list_files(tree), ["r/a.md", "r/m/b.md", "r/z.md"]);
   });
 });
