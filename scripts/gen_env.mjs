@@ -59,6 +59,7 @@ const SHAPE = {
   frontend: { base_path: "VITE_BASE_PATH", api_url: "VITE_API_URL" },
   secrets_dir: "SECRETS_DIR",
   knowledge_base: { root: "KNOWLEDGE_BASE_ROOT" },
+  static: { root: "STATIC_ROOT" },
   rate_limits: {
     login: limit_vars("RATE_LIMIT_LOGIN"),
     ally: limit_vars("RATE_LIMIT_ALLY"),
