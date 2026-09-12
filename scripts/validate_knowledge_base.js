@@ -81,7 +81,7 @@ async function read_nodes(root) {
     const id = fields.id;
     if (!id) continue;
     const expected = name.slice(0, -".md".length);
-    if (id !== expected && `track-${expected}` !== id) {
+    if (id !== expected) {
       err(name, `id '${id}' does not match filename`);
     }
     if (id in nodes) err(name, `duplicate id '${id}' (also in ${files[id]})`);

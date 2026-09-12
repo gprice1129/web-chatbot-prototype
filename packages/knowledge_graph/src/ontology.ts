@@ -99,6 +99,7 @@ const NODE_STATUSES = Object.freeze(["draft", "current", "deprecated"]);
 // Who a node was written for.
 const NODE_AUDIENCES = Object.freeze([
   "public", "patient", "clinician", "researcher", "staff", "admin", "developer",
+  "student", "faculty",
 ]);
 
 /*
