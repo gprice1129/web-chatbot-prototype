@@ -12,11 +12,7 @@
 // them, so a document the app would refuse is an error here too.
 
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
-import { find_markdown, read_markdown, list_files, ok_or_throw } from "common";
-
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_ROOT = path.join(REPO_ROOT, "packages", "static", "knowledge");
+import { read_nodes as read_corpus, root_from_argv, as_list } from "./knowledge_nodes.mjs";
 
 const ATOM_TYPES = new Set(["concept", "skill", "tool", "risk", "policy", "case"]);
 const COMP_TYPES = new Set(["module", "track"]);
@@ -36,20 +32,10 @@ const TARGET_TYPES = {
   illustrates: new Set(["concept", "skill", "tool", "risk", "policy"]),
 };
 
-// Documents that describe the graph rather than being part of it.
-const NON_NODE_FILES = new Set(["ONTOLOGY.md", "TAXONOMY.md", "GRAPH.md", "INDEX.md", "README.md"]);
-
 const errors = [];
 const warnings = [];
 function err(file, message) { errors.push(`ERROR  ${file}: ${message}`); }
 function warn(file, message) { warnings.push(`WARN   ${file}: ${message}`); }
-
-// A field that may be one name or a list of names, as a list.
-function as_list(value) {
-  if (undefined === value || null === value) return [];
-  if (Array.isArray(value)) return value.map(String);
-  return [String(value)];
-}
 
 // Whether a value is an ISO date the calendar accepts.
 function parse_iso_date(value) {
@@ -61,34 +47,25 @@ function parse_iso_date(value) {
   return date;
 }
 
-// Read every node document into { id -> fields } and { id -> file name }.
+// Every node document as { id -> fields } and { id -> file name }, with the
+// required fields and the id-equals-filename rule checked on the way in.
 async function read_nodes(root) {
-  const nodes = {};
+  const corpus = await read_corpus(root);
+  for (const problem of corpus.problems) err(path.basename(problem.file), problem.message);
   const files = {};
-  const found = ok_or_throw(await find_markdown(root), root);
-  for (const file of list_files(found)) {
+  for (const [id, file] of Object.entries(corpus.files)) {
     const name = path.basename(file);
-    if (NON_NODE_FILES.has(name)) continue;
-    const read = await read_markdown(file);
-    if (!read.ok) {
-      err(name, read.error);
-      continue;
-    }
-    const fields = read.value.fields;
+    files[id] = name;
+    const fields = corpus.nodes[id];
     for (const key of REQUIRED) {
       if (!(key in fields)) err(name, `missing required field '${key}'`);
     }
-    const id = fields.id;
-    if (!id) continue;
     const expected = name.slice(0, -".md".length);
     if (id !== expected) {
       err(name, `id '${id}' does not match filename`);
     }
-    if (id in nodes) err(name, `duplicate id '${id}' (also in ${files[id]})`);
-    nodes[id] = fields;
-    files[id] = name;
   }
-  return { nodes, files };
+  return { nodes: corpus.nodes, files };
 }
 
 // Every edge resolves and points at a legal target type.
@@ -194,8 +171,7 @@ function check_coverage(nodes, files) {
 }
 
 async function main(argv) {
-  const root_at = argv.indexOf("--root");
-  const root = -1 === root_at ? DEFAULT_ROOT : path.resolve(argv[root_at + 1]);
+  const root = root_from_argv(argv);
   const show_warnings = argv.includes("--warn");
   const today = new Date();
 
