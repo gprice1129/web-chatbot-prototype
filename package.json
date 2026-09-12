@@ -1,6 +1,7 @@
 {
   "name": "web-chatbot-prototype",
   "private": true,
+  "type": "module",
   "engines": {
     "node": ">=22.18"
   },
@@ -30,7 +31,8 @@
     "test:file_storage": "cd packages/file_storage && npm run test",
     "test:code_exec": "cd packages/code_exec && npm run test",
     "test:db": "cd packages/db && npm run test",
-    "test:scripts": "node --test \"scripts/**/*.test.mjs\""
+    "test:scripts": "node --test \"scripts/**/*.test.mjs\"",
+    "validate:knowledge_base": "node scripts/validate_knowledge_base.js"
   },
   "devDependencies": {
     "fastify": "^5.8.4",

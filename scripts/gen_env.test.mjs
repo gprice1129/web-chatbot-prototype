@@ -72,8 +72,8 @@ test("merge: a null in the override unsets what the base set", () => {
 });
 
 test("merge: the override can add a section the base lacks", () => {
-  const merged = merge(minimal(), { knowledge_base: { root: "/srv/kb" } });
-  assert.equal(merged.knowledge_base.root, "/srv/kb");
+  const merged = merge(minimal(), { static: { root: "/srv/static" } });
+  assert.equal(merged.static.root, "/srv/static");
 });
 
 test("load_config: config.local.json beside the config is merged in when present", async () => {

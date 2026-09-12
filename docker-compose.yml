@@ -32,11 +32,9 @@ services:
       MODEL_SUMMARY_THINKING: ${MODEL_SUMMARY_THINKING:-}
       MODEL_SUMMARY_CACHING: ${MODEL_SUMMARY_CACHING:-}
       MODEL_SUMMARY_MAX_TOKENS: ${MODEL_SUMMARY_MAX_TOKENS:-}
-      # Where the knowledge base is mounted (see volumes below). The app
-      # builds the chatbot's knowledge graph from it on startup.
-      KNOWLEDGE_BASE_PATH: /var/lib/aim_hi/knowledge_base
-      # Where the static package is mounted (see volumes below). The app reads
-      # every bot's prompts from its prompts/ directory on startup.
+      # Where the static package is mounted (see volumes below). On startup the
+      # app builds the chatbot's knowledge graph from its knowledge/ directory
+      # and reads every bot's prompts from its prompts/ directory.
       STATIC_PATH: /var/lib/aim_hi/static
       PGHOST: postgres
       PGPORT: 5432
@@ -68,8 +66,6 @@ services:
       start_period: 10s
     volumes:
       - uploads:${FILES_BASE_PATH}
-      # The markdown corpus on the host. Read-only: the app only reads it.
-      - ${KNOWLEDGE_BASE_ROOT:-./config/knowledge_base}:/var/lib/aim_hi/knowledge_base:ro
       # The static package on the host. Read-only: the app only reads it.
       - ${STATIC_ROOT:-./packages/static}:/var/lib/aim_hi/static:ro
     mem_limit: 768m

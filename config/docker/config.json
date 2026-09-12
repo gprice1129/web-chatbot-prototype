@@ -22,9 +22,6 @@
     "api_url": "/api"
   },
   "secrets_dir": "./secrets",
-  "knowledge_base": {
-    "root": "./config/knowledge_base"
-  },
   "rate_limits": {
     "login": {
       "max": 5,

@@ -58,7 +58,7 @@ file unsets a value the base config set. The sections are:
 | `app` | `auth_mode` and `model_mode`, each `real` or `mock`: mock auth seeds `testuser` and accepts any password; the mock model gives canned replies. `debug_mode` adds a `debug` trace (model rounds, tool calls, tokens) to Ally replies. Also the upload path and proxy trust |
 | `nginx`, `frontend` | the public hostname, and the frontend's base and API paths |
 | `secrets_dir` | where compose reads the secret files (see below) |
-| `knowledge_base` | the markdown corpus the chatbot builds its graph from on startup |
+| `static` | where the static package is checked out; the app reads the knowledge base from its `knowledge/` directory and the bots' prompts from `prompts/` on startup. Defaults to the `packages/static` submodule |
 | `rate_limits`, `login_limits` | request limits |
 | `models` | per-bot generation parameters; `null` keeps the app's profile defaults |
 
