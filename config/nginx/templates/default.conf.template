@@ -22,6 +22,10 @@ server {
         proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
         proxy_read_timeout 300s;
         proxy_send_timeout 300s;
+        # nginx consumes the app's X-Accel-Buffering: no (sent on streamed bot
+        # replies) and hides it by default; pass it on so a fronting nginx
+        # streams those replies unbuffered too.
+        proxy_pass_header X-Accel-Buffering;
     }
 
     location / {
