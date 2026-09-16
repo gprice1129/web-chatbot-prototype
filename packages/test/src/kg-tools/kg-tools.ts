@@ -164,7 +164,7 @@ export async function kg_tools(opts: KgToolsOptions): Promise<void> {
       if (undefined === reply.debug) {
         throw new Error("The server returned no debug trace. Start it with DEBUG_MODE=true.");
       }
-      console.log(`\n> ${turn.message}\n\n${reply.message.join("\n")}\n`);
+      console.log(`\n> ${turn.message}\n\n${reply.message.join("\n\n")}\n`);
       console.log(describe_trace(reply.debug));
       if (turn.check(reply.debug)) continue;
       throw new Error(`Expected tool activity missing: ${turn.why}.`);
