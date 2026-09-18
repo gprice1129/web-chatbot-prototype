@@ -15,11 +15,13 @@
 // file uploads are required — Ally takes no files.
 //
 // With no [message], the CLI driver runs a short scripted conversation that
-// exercises the three behaviours worth eyeballing: domain knowledge (UAB /
-// Hugh Kaul), the grant-reviewer hand-off link, and multi-turn memory. Because
-// memory is rebuilt from the chat's stored messages, each turn is a fresh
-// login yet still sees the earlier turns. Confirm the persisted transcript
-// with `npm run chat-messages-get -- <chat-id>`.
+// exercises the behaviours worth eyeballing: domain knowledge (UAB / Hugh
+// Kaul), the knowledge graph on a UAB IT question and on one that spans the
+// AI and UAB subjects, the grant-reviewer hand-off link, and multi-turn
+// memory. Because memory is rebuilt from the chat's stored messages, each turn
+// is a fresh login yet still sees the earlier turns. Confirm the persisted
+// transcript with `npm run chat-messages-get -- <chat-id>`; with
+// DEBUG_MODE=true the server's log shows which nodes each turn opened.
 
 // Match `curl -k` for the local self-signed cert. Set before any fetch so
 // undici picks it up when the global dispatcher is created.
@@ -98,6 +100,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const single = process.argv[3];
   const conversation = single ? [single] : [
     "Hi Ally! In one sentence, what is the Hugh Kaul Precision Medicine Institute?",
+    // A UAB IT question: should reach the uab subject's Duo recovery skill.
+    "My Duo push is not arriving and my BlazerID password worked in webmail. Class starts in ten minutes, what do I do?",
+    // A question that spans both subjects: the Copilot tool node and the PHI policy.
+    "Can I paste a patient's discharge summary into Copilot to shorten it?",
     "I need to evaluate a grant proposal against an RFA. Is there a tool on this site for that?",
     "Thanks. To check you followed along — what did I just say I wanted to do?",
   ];
