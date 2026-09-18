@@ -18,7 +18,7 @@ Each reply is printed with its trace for eyeballing.
 - Server started with `AUTH_MODE=mock`, which seeds `testuser` and configures the mock auth service to ignore the password.
 - Server started with `MODEL_MODE=real`. The mock model never calls tools.
 - Server started with `DEBUG_MODE=true`, so replies carry the trace.
-- The knowledge base mounted into the server is the project corpus (`config/knowledge_base`).
+- The knowledge base mounted into the server is the project corpus (`packages/static/knowledge`).
 - Self-signed cert is fine — the script sets `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 
 ## Run

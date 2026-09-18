@@ -9,6 +9,7 @@ describe("the common package interface", () => {
   it("offers exactly what the barrel exports", async () => {
     const surface = Object.keys(await import("common")).sort();
     assert.deepEqual(surface, [
+      "as_list",
       "find_files",
       "find_markdown",
       "is_boolean",
@@ -22,6 +23,7 @@ describe("the common package interface", () => {
       "ok_or_throw",
       "parse_boolean",
       "parse_frontmatter",
+      "parse_iso_date",
       "parse_positive_int",
       "read_markdown",
       "read_secret",

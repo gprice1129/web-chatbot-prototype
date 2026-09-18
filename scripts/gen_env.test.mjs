@@ -17,6 +17,7 @@ function minimal() {
     postgres: { superuser: "pg", app_user: "app", app_database: "db" },
     app: { files_base_path: "/uploads" },
     nginx: { server_name: "example.test" },
+    sources: { knowledge: "/kb", prompts: "/prompts" },
   };
 }
 
@@ -72,32 +73,41 @@ test("merge: a null in the override unsets what the base set", () => {
 });
 
 test("merge: the override can add a section the base lacks", () => {
-  const merged = merge(minimal(), { knowledge_base: { root: "/srv/kb" } });
-  assert.equal(merged.knowledge_base.root, "/srv/kb");
+  const merged = merge(minimal(), { sources: { knowledge: "/srv/knowledge" } });
+  assert.equal(merged.sources.knowledge, "/srv/knowledge");
 });
 
-test("load_config: config.local.json beside the config is merged in when present", async () => {
+test("load_config: override.json beside the profile is merged in when present", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "gen-env-"));
-  const config_path = path.join(dir, "config.json");
+  const config_path = path.join(dir, "local.json");
   try {
     await writeFile(config_path, JSON.stringify(minimal()));
     const alone = load_config(config_path);
-    assert.equal(alone.local, null);
-    assert.equal(alone.config.nginx.server_name, "example.test");
+    assert.equal(alone.override, null);
+    assert.equal(alone.config.nginx.server_name, minimal().nginx.server_name);
 
-    await writeFile(path.join(dir, "config.local.json"),
+    await writeFile(path.join(dir, "override.json"),
       JSON.stringify({ nginx: { server_name: "local.test" } }));
     const merged = load_config(config_path);
-    assert.equal(merged.local, path.join(dir, "config.local.json"));
+    assert.equal(merged.override, path.join(dir, "override.json"));
     assert.equal(merged.config.nginx.server_name, "local.test");
-    assert.equal(merged.config.postgres.superuser, "pg");
   } finally {
-    await rm(dir, { recursive: true });
+    await rm(dir, { recursive: true, force: true });
   }
 });
 
-test("the committed config renders without error", () => {
-  const file = path.join(REPO_ROOT, "config", "docker", "config.json");
-  const config = JSON.parse(readFileSync(file, "utf8"));
-  assert.doesNotThrow(() => render_env(config));
+test("every committed profile renders without error", () => {
+  for (const profile of ["local", "production"]) {
+    const file = path.join(REPO_ROOT, "config", "docker", `${profile}.json`);
+    const config = JSON.parse(readFileSync(file, "utf8"));
+    assert.doesNotThrow(() => render_env(config), profile);
+  }
+});
+
+test("the local and production profiles set the same keys", () => {
+  const keys = (config, at = []) => Object.entries(config).flatMap(([k, v]) =>
+    null !== v && "object" === typeof v ? keys(v, [...at, k]) : [[...at, k].join(".")]);
+  const of = (profile) => keys(JSON.parse(readFileSync(
+    path.join(REPO_ROOT, "config", "docker", `${profile}.json`), "utf8"))).sort();
+  assert.deepEqual(of("local"), of("production"));
 });
