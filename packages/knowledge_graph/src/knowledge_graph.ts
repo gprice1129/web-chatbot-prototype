@@ -33,6 +33,7 @@ export type {
 // halves of one provider, composed at the call site.
 export {
   load_markdown_corpus,
+  NON_NODE_FILES,
 } from "#kg/providers/markdown_corpus.js";
 
 export {

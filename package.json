@@ -32,7 +32,7 @@
     "test:code_exec": "cd packages/code_exec && npm run test",
     "test:db": "cd packages/db && npm run test",
     "test:scripts": "node --test \"scripts/**/*.test.mjs\"",
-    "validate:knowledge_base": "node scripts/validate_knowledge_base.js"
+    "validate:knowledge_base": "cd packages/test && npm run validate-knowledge-base --"
   },
   "devDependencies": {
     "fastify": "^5.8.4",

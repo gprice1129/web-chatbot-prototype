@@ -1,6 +1,6 @@
 export {
   load_markdown_corpus,
-  _NON_NODE_FILES,
+  NON_NODE_FILES,
 }
 
 import * as path from "node:path";
@@ -10,6 +10,7 @@ import {
   find_markdown,
   list_files,
   ok_or_throw,
+  as_list,
   type Result,
   type FrontmatterValue,
   type MarkdownDocument,
@@ -242,7 +243,7 @@ function _find_ontology_drift(
  * Private
  */
 function _is_node_file(file: string): boolean {
-  return !_NON_NODE_FILES.has(path.basename(file));
+  return !NON_NODE_FILES.has(path.basename(file));
 }
 
 /*
@@ -262,25 +263,23 @@ function _as_string(value: FrontmatterValue | undefined): string {
 }
 
 /*
- * Idea: Whatever a field declared, read as a list of names.
+ * Idea: Whatever a field declared, read as the names it holds, blanks dropped.
  *
  * (FrontmatterValue | undefined) => string[]
- * A field written as one bare value and one written as a list read the same, so
- * nothing downstream branches on cardinality.
+ * A blank entry is considered a typo and silently dropped.
  * Pure
  * Private
  */
 function _as_list(value: FrontmatterValue | undefined): string[] {
-  if (undefined === value || null === value) return [];
-  if (Array.isArray(value)) return value.map((v) => String(v)).filter((s) => "" !== s);
-  const single = String(value).trim();
-  return "" === single ? [] : [single];
+  return as_list(value).map((s) => s.trim()).filter((s) => "" !== s);
 }
 
 /*
  * Idea: Documents that describe the graph rather than being part of it.
+ * Anything that reads the corpus as nodes skips exactly these, so the loader
+ * and the validators agree on what the corpus contains.
  */
-const _NON_NODE_FILES = new Set([
+const NON_NODE_FILES = new Set([
   "ONTOLOGY.md",
   "TAXONOMY.md",
   "GRAPH.md",

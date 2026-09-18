@@ -4,7 +4,7 @@ import * as path from "node:path";
 
 import {
   load_markdown_corpus,
-  _NON_NODE_FILES,
+  NON_NODE_FILES,
 } from "#kg/providers/markdown_corpus.js";
 import type { GraphNode } from "#kg/ontology.js";
 import { KB_ROOT, KB_NODE_COUNT } from "../support/conformance.ts";
@@ -29,7 +29,7 @@ describe("load_markdown_corpus", () => {
   it("loads every node file and nothing else", () => {
     assert.equal(corpus.nodes.length, KB_NODE_COUNT);
     assert.equal(corpus.nodes.some((n) => "readme-impostor" === n.id), false);
-    for (const name of _NON_NODE_FILES) {
+    for (const name of NON_NODE_FILES) {
       assert.equal(corpus.warnings.some((w) => w.includes(name)), false, name);
     }
     for (const warning of corpus.warnings) {
