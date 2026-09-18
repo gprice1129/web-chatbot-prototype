@@ -29,6 +29,7 @@ describe("the common package interface", () => {
       "read_secret",
       "read_text",
       "separate_frontmatter",
+      "unless_aborted",
     ]);
   });
 

@@ -45,6 +45,10 @@ export {
 } from "#common/time.js";
 
 export {
+  unless_aborted,
+} from "#common/async.js";
+
+export {
   read_text,
   find_files,
   list_files,
