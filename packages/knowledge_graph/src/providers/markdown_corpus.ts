@@ -90,9 +90,27 @@ async function load_markdown_corpus(
     }
     id_to_file.set(node.id, rel);
     for (const drift of _find_ontology_drift(rel, node, declared_status)) on_warning(drift);
-    nodes.push(node);
+    nodes.push({ ...node, subject: _subject_of(rel) });
   }
   return nodes;
+}
+
+/*
+ * Idea: A node as its document describes it: everything but where it sits in
+ * the corpus. The subject comes from the layout, which a document cannot see.
+ */
+interface _DocumentNode {
+  id: string;
+  title: string;
+  summary: string;
+  type: string;
+  level: string | null;
+  draft: boolean;
+  deprecated: boolean;
+  audiences: string[];
+  aliases: string[];
+  edges: Record<string, string[]>;
+  body: string;
 }
 
 /*
@@ -104,7 +122,7 @@ async function load_markdown_corpus(
  * word is carried this far, and no further, so it can be warned about.
  */
 interface _ParsedDocument {
-  node: GraphNode;
+  node: _DocumentNode;
   declared_status: string;
 }
 
@@ -166,6 +184,22 @@ function _parse_document(document: MarkdownDocument): _ParsedDocument {
 }
 
 /*
+ * Idea: Which subject a file belongs to, read from where it sits.
+ *
+ * (string) => string
+ * The ontology lays a corpus out as <subject>/<role>/<file>, so the subject is
+ * everything above the role directory. A corpus laid out flat as
+ * <role>/<file> has no subject level and yields "".
+ * Pure
+ * Private
+ */
+function _subject_of(rel: string): string {
+  const above_role = path.dirname(path.dirname(rel));
+  if ("." === above_role) return "";
+  return above_role.split(path.sep).join("/");
+}
+
+/*
  * Idea: A node's arcs out to other nodes, however the author chose to write
  * them.
  *
@@ -192,7 +226,7 @@ function _read_edges(raw: FrontmatterValue | undefined): Record<string, string[]
  * Idea: Where what a node claims about itself and what the vocabulary allows
  * have drifted apart.
  *
- * (string, GraphNode, string) => string[]
+ * (string, _DocumentNode, string) => string[]
  * The lifecycle word comes in separately because it is the one facet the node
  * does not carry: by the time a node exists the term has already become two
  * booleans, and an undeclared one is indistinguishable from `current`.
@@ -207,7 +241,7 @@ function _read_edges(raw: FrontmatterValue | undefined): Record<string, string[]
  * Private
  */
 function _find_ontology_drift(
-    rel: string, node: GraphNode, declared_status: string): string[] {
+    rel: string, node: _DocumentNode, declared_status: string): string[] {
   const found: string[] = [];
   if ("" === node.type) {
     found.push(`${rel}: no 'type' declared; not filterable by type`);

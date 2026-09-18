@@ -26,6 +26,7 @@ export type {
 // than in method: nodes in, nodes out.
 export type {
   SearchFilters,
+  SubjectOutline,
   KnowledgeGraphSource,
 } from "#kg/port.js";
 

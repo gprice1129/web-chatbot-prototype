@@ -7,6 +7,7 @@ export type {
 
 import type {
   SearchFilters,
+  SubjectOutline,
   KnowledgeGraphSource,
 } from "#kg/port.js";
 import {
@@ -153,6 +154,31 @@ class LexicalGraph implements KnowledgeGraphSource {
   }
 
   /*
+   * Idea: What the graph covers.
+   *
+   * (void) => SubjectOutline[]
+   * Every subject appears with the modules that belong to it. Subjects and
+   * modules are in id order so the answer is stable across loads.
+   *
+   * Async to satisfy the port. This implementation never awaits.
+   * Pure
+   * Public
+   */
+  public async outline(): Promise<SubjectOutline[]> {
+    const by_subject = new Map<string, GraphNode[]>();
+    for (const node of this._nodes.values()) {
+      const modules = by_subject.get(node.subject) ?? [];
+      if ("module" === node.type) modules.push(node);
+      by_subject.set(node.subject, modules);
+    }
+    return [...by_subject.keys()].sort().map((subject) => ({
+      subject,
+      modules: (by_subject.get(subject) ?? [])
+        .sort((a, b) => a.id.localeCompare(b.id)),
+    }));
+  }
+
+  /*
    * Idea: The same ranking with each node's strength attached, for
    * inspecting how the order was reached.
    *
@@ -263,7 +289,8 @@ function _is_eligible(node: GraphNode, filters: SearchFilters): boolean {
   if (__excluded_by_deprecation(node.deprecated, filters)
       || __excluded_by_type(node.type, filters)
       || __excluded_by_level(node.level, filters)
-      || __excluded_by_audience(node.audiences, filters)) {
+      || __excluded_by_audience(node.audiences, filters)
+      || __excluded_by_subject(node.subject, filters)) {
     return false;
   }
   return true;
@@ -291,6 +318,12 @@ function _is_eligible(node: GraphNode, filters: SearchFilters): boolean {
     if (undefined === wanted || 0 === wanted.length) return false;
     // One audience in common is enough; a node may serve several.
     return !wanted.some((audience) => audiences.includes(audience));
+  }
+
+  function __excluded_by_subject(subject: string, filters: SearchFilters): boolean {
+    const subjects = filters.subjects;
+    if (undefined === subjects || 0 === subjects.length) return false;
+    return !subjects.includes(subject);
   }
 }
 
