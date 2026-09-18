@@ -9,6 +9,7 @@ plan/**
 
 # The knowledge base corpus lives here for a fixed local path but is its own content set
 config/knowledge_base/
+config/uploads/
 
-# Machine-specific docker config, merged over config/docker/config.json
-config/docker/config.local.json
+# Machine-specific docker config, merged over the chosen config/docker profile
+config/docker/override.json
