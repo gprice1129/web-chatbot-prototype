@@ -1,5 +1,6 @@
 export type {
   SearchFilters,
+  SubjectOutline,
   KnowledgeGraphSource,
 }
 
@@ -10,8 +11,9 @@ import type { GraphNode } from "#kg/ontology.js";
  * -----------------------------------------------------------------------------
  * This file defines what any supplier of knowledge graph nodes must be able to
  * do:
- *   1. Match a query to the nodes that best answer it. 
+ *   1. Match a query to the nodes that best answer it.
  *   2. Open a node named by identity.
+ *   3. Say what it covers: its subjects and the modules in each.
  *
  * Only outcomes are constrained. How a supplier holds or ranks its nodes is
  * deliberately absent, and no trace of that ranking reaches a caller.
@@ -36,9 +38,16 @@ interface SearchFilters {
   types?: string[];
   levels?: string[];
   audiences?: string[];
+  subjects?: string[];
   // Deprecated nodes are excluded by default: they exist to carry a
   // superseded_by pointer, not to be taught from.
   include_deprecated?: boolean;
+}
+
+// Idea: One subject and the modules that make it up.
+interface SubjectOutline {
+  subject: string;
+  modules: GraphNode[];
 }
 
 /*
@@ -49,4 +58,7 @@ interface KnowledgeGraphSource {
   search(query: string, filters: SearchFilters): Promise<GraphNode[]>;
   // One node by id, falling back to an exact title or alias; null if unknown.
   get(id: string): Promise<GraphNode | null>;
+  // Every subject the graph holds with its modules. Subjects and modules
+  // both in id order. A subject with no modules still appears.
+  outline(): Promise<SubjectOutline[]>;
 }

@@ -1,6 +1,6 @@
 {
   "anthropic": {
-    "base_url": "https://api.anthropic.com"
+    "base_url": "https://pmi-aim-hi-resource.services.ai.azure.com/anthropic/"
   },
   "postgres": {
     "superuser": "postgres",
@@ -12,18 +12,20 @@
     "model_mode": "real",
     "debug_mode": false,
     "files_base_path": "/var/lib/aim_hi/uploads",
-    "trust_proxy": false
+    "trust_proxy": 2,
+    "sse_heartbeat": null
   },
   "nginx": {
-    "server_name": "your.domain.com"
+    "server_name": "pmi.might.net"
   },
   "frontend": {
-    "base_path": "/",
-    "api_url": "/api"
+    "base_path": "/aimhi/",
+    "api_url": "/aimhi/api"
   },
-  "secrets_dir": "./secrets",
-  "knowledge_base": {
-    "root": "./config/knowledge_base"
+  "secrets_dir": "/etc/aim-hi/secrets",
+  "sources": {
+    "knowledge": "./packages/static/knowledge",
+    "prompts": "./packages/static/prompts"
   },
   "rate_limits": {
     "login": {

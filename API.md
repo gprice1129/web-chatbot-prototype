@@ -762,8 +762,9 @@ no file uploads.
 
 The `message` array contains the reply's text blocks (joined with blank lines
 when persisted). `steps` lists each tool round behind the reply: the model's
-lead-in text and the calls it made (without tool result bodies). It is an empty
-array when the model answered without tools.
+preface (the text it wrote before asking for tools) and the calls it made,
+without tool result bodies. It is an empty array when the model answered
+without tools.
 
 Conversational memory is rebuilt from the chat's stored messages on each call,
 so subsequent turns see earlier ones even across separate requests. Tool-round
@@ -771,7 +772,7 @@ so subsequent turns see earlier ones even across separate requests. Tool-round
 
 When `APP_DEBUG` (or the server's debug mode) is on, the JSON body also includes
 `debug` with the full model trace (`rounds`, `tool_calls` with result previews,
-`steps`, and `usage`).
+and `usage`).
 
 **Streaming (`Accept: text/event-stream`)**
 
@@ -780,15 +781,17 @@ of a single JSON body. Each event is one `data:` line of JSON:
 
 | Event | Shape | When |
 |-------|--------|------|
-| `text` | `{ "type": "text", "text": "..." }` | Reply text as the model writes it (including tool-round lead-ins) |
-| `tool` | `{ "type": "tool", "calls": [{ "name", "input" }] }` | A round stopped to call tools; text since the last event was its lead-in |
+| `text` | `{ "type": "text", "text": "..." }` | Reply text as the model writes it (including tool-round prefaces) |
+| `tool` | `{ "type": "tool", "calls": [{ "name", "input" }] }` | A round stopped to call tools; text since the last event was its preface, not the answer |
 | `done` | `{ "type": "done", "message": [...], "steps": [...], "debug"? }` | Same payload a JSON client would get on success |
 | `error` | `{ "type": "error", "status": 502, "error": "..." }` | Same status/message a JSON client would get on failure |
 
 Comment lines (`: ping`) may appear as heartbeats while the model thinks or
 tools run. Validation failures (missing chat, bad body) still return plain JSON
-before the stream starts. If the client disconnects mid-stream, generation is
-aborted and nothing is persisted.
+before the stream starts. If the client disconnects while the reply is being
+generated, generation is aborted and the exchange is not persisted. A
+disconnect after generation has finished still persists the exchange; only the
+`done` event is lost.
 
 **Error**
 
@@ -964,6 +967,7 @@ checksum on a second run and still answers `200`.
 | `RATE_LIMIT_GRANT_REVIEW_MAX` / `RATE_LIMIT_GRANT_REVIEW_WINDOW` | Per-user grant-review rate limit (default `10` / `1 hour`) |
 | `LOGIN_USERNAME_MAX_LENGTH` / `LOGIN_PASSWORD_MAX_LENGTH` / `LOGIN_BODY_LIMIT` | Login input and body-size limits |
 | `TRUST_PROXY` | When set (`true`, `false`, or hop count), controls Fastify `trustProxy` for client IP behind nginx |
+| `SSE_HEARTBEAT` | Interval between keep-alive comments on a streamed bot reply, as a duration like the rate-limit windows (default `15 seconds`) |
 
 ### Model Generation Parameters
 

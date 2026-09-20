@@ -37,19 +37,25 @@ They are mounted into the containers as files via Docker Compose `secrets:`
 (see below), which keeps them out of `docker inspect`, `/proc/<pid>/environ`,
 child-process env, and crash logs.
 
-Render the config into the `.env` file:
+Two profiles are committed under `config/docker/`: `local.json` is the developer
+stack (mock auth, debug traces, no rate limits, `localhost`) and
+`production.json` is the real one. Render the one you want into the `.env`
+file; the profile is always named, so a stack is never generated from the
+wrong one by accident:
 
 ```sh
-node scripts/gen_env.mjs            # writes ./.env
-node scripts/gen_env.mjs --force    # overwrite an existing .env
+node scripts/gen_env.mjs local               # writes ./.env for the developer stack
+node scripts/gen_env.mjs production          # writes ./.env for production
+node scripts/gen_env.mjs local --force       # overwrite an existing .env
 ```
 
-Machine-specific values go in `config/docker/config.local.json`, which is
-gitignored and merged over `config.json` key by key.
+Machine-specific values, such as the model endpoint, go in
+`config/docker/override.json`, which is gitignored and merged over the chosen
+profile key by key.
 
 Each key maps onto one variable in `docker-compose.yml`. A `null` value leaves
-that variable unset, so the compose default applies. A `null` in the local
-file unsets a value the base config set. The sections are:
+that variable unset, so the compose default applies. A `null` in the override
+unsets a value the profile set. The sections are:
 
 | section | what it configures |
 | --- | --- |
@@ -58,7 +64,7 @@ file unsets a value the base config set. The sections are:
 | `app` | `auth_mode` and `model_mode`, each `real` or `mock`: mock auth seeds `testuser` and accepts any password; the mock model gives canned replies. `debug_mode` adds a `debug` trace (model rounds, tool calls, tokens) to Ally replies. Also the upload path and proxy trust |
 | `nginx`, `frontend` | the public hostname, and the frontend's base and API paths |
 | `secrets_dir` | where compose reads the secret files (see below) |
-| `knowledge_base` | the markdown corpus the chatbot builds its graph from on startup |
+| `sources` | `knowledge` and `prompts`: the host directories the app reads the knowledge base and the bots' prompts from on startup, normally the two directories of the `packages/static` submodule |
 | `rate_limits`, `login_limits` | request limits |
 | `models` | per-bot generation parameters; `null` keeps the app's profile defaults |
 
