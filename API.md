@@ -751,9 +751,9 @@ no file uploads.
 ```json
 {
   "message": ["string", "..."],
-  "steps": [
+  "tool_rounds": [
     {
-      "text": "string",
+      "text": ["string"],
       "calls": [{ "name": "string", "input": {}, "ok": true }]
     }
   ]
@@ -761,14 +761,14 @@ no file uploads.
 ```
 
 The `message` array contains the reply's text blocks (joined with blank lines
-when persisted). `steps` lists each tool round behind the reply: the model's
-preface (the text it wrote before asking for tools) and the calls it made,
-without tool result bodies. It is an empty array when the model answered
+when persisted). `tool_rounds` lists each tool round behind the reply: the model's
+preface (the text blocks it wrote before asking for tools) and the calls it
+made, without tool result bodies. It is an empty array when the model answered
 without tools.
 
 Conversational memory is rebuilt from the chat's stored messages on each call,
-so subsequent turns see earlier ones even across separate requests. Tool-round
-`steps` are also stored on the assistant message's `metadata` when non-empty.
+so subsequent turns see earlier ones even across separate requests. The
+`tool_rounds` are also stored on the assistant message's `metadata` when non-empty.
 
 When `APP_DEBUG` (or the server's debug mode) is on, the JSON body also includes
 `debug` with the full model trace (`rounds`, `tool_calls` with result previews,
@@ -782,8 +782,9 @@ of a single JSON body. Each event is one `data:` line of JSON:
 | Event | Shape | When |
 |-------|--------|------|
 | `text` | `{ "type": "text", "text": "..." }` | Reply text as the model writes it (including tool-round prefaces) |
-| `tool` | `{ "type": "tool", "calls": [{ "name", "input" }] }` | A round stopped to call tools; text since the last event was its preface, not the answer |
-| `done` | `{ "type": "done", "message": [...], "steps": [...], "debug"? }` | Same payload a JSON client would get on success |
+| `tool_calls` | `{ "type": "tool_calls", "calls": [{ "name", "input" }] }` | A round stopped to call tools and they are about to run; text since the last tool event was its preface, not the answer |
+| `tool_round` | `{ "type": "tool_round", "round": { "text": [...], "calls": [{ "name", "input", "ok" }] } }` | The round has run; one entry of `tool_rounds`, as it will appear in `done` |
+| `done` | `{ "type": "done", "message": [...], "tool_rounds": [...], "debug"? }` | Same payload a JSON client would get on success |
 | `error` | `{ "type": "error", "status": 502, "error": "..." }` | Same status/message a JSON client would get on failure |
 
 Comment lines (`: ping`) may appear as heartbeats while the model thinks or
@@ -849,9 +850,9 @@ when persisted).
 
 **Streaming (`Accept: text/event-stream`)**
 
-Same SSE protocol as Ally (`text` / `tool` / `done` / `error`), except a
+Same SSE protocol as Ally (`text` / `tool_calls` / `tool_round` / `done` / `error`), except a
 successful `done` event carries `{ "type": "done", "message": [...] }` (no
-`steps`). Grant review does not currently expose tools, so `tool` events are
+`tool_rounds`). Grant review does not currently expose tools, so tool events are
 not expected in practice.
 
 **Error**

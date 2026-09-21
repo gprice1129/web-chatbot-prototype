@@ -6,10 +6,10 @@
 // messages from the database into the model's memory, appends the new message,
 // and answers under the Ally persona. The exchange (user message + assistant
 // reply) is then recorded on the chat. Response:
-// `{ message: string[], steps: [{ text, calls }] }` (plus optional `debug` in
-// debug mode), where each step is one tool round: the model's preface and the
-// calls it made. Pass `Accept: text/event-stream` for SSE (`text` / `tool` /
-// `done` / `error`) instead of a single JSON body.
+// `{ message: string[], tool_rounds: [{ text, calls }] }` (plus optional `debug`
+// in debug mode), where each tool round holds the model's preface and the
+// calls it made. Pass `Accept: text/event-stream` for SSE (`text` /
+// `tool_calls` / `tool_round` / `done` / `error`) instead of a single JSON body.
 //
 //   npm run ally -- <chat-id> [message] [base-url]
 //
@@ -41,7 +41,7 @@ interface AllyOptions {
 
 interface AllyResult {
   message: string[];
-  steps: { text: string; calls: { name: string; input: unknown; ok: boolean }[] }[];
+  tool_rounds: { text: string[]; calls: { name: string; input: unknown; ok: boolean }[] }[];
 }
 
 export async function ally(opts: AllyOptions): Promise<AllyResult> {
@@ -68,7 +68,7 @@ export async function ally(opts: AllyOptions): Promise<AllyResult> {
   //    chat belongs to the user (404 otherwise), loads prior user/assistant
   //    turns for conversational memory, generates a reply, and records both the
   //    user message and the assistant reply on the chat. Response:
-  //    `{ message: string[], steps: [...] }` — reply text blocks plus tool rounds.
+  //    `{ message: string[], tool_rounds: [...] }` — reply text blocks plus tool rounds.
   const ally_res = await fetch(
     `${opts.base_url}/api/applications/ally`,
     {
