@@ -12,7 +12,8 @@
     "model_mode": "real",
     "debug_mode": true,
     "files_base_path": "/var/lib/aim_hi/uploads",
-    "trust_proxy": false
+    "trust_proxy": false,
+    "sse_heartbeat": null
   },
   "nginx": {
     "server_name": "localhost"

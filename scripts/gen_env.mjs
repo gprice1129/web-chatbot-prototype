@@ -62,6 +62,7 @@ const SHAPE = {
     debug_mode: "DEBUG_MODE",
     files_base_path: required("FILES_BASE_PATH"),
     trust_proxy: "TRUST_PROXY",
+    sse_heartbeat: "SSE_HEARTBEAT",
   },
   nginx: { server_name: required("SERVER_NAME") },
   frontend: { base_path: "VITE_BASE_PATH", api_url: "VITE_API_URL" },

@@ -26,10 +26,15 @@ describe("unless_aborted", () => {
     await assert.rejects(waited, { name: "AbortError" });
   });
 
-  it("rejects at once on a signal already aborted", async () => {
+  it("rejects at once on a signal already aborted, still watching the promise", async () => {
     const controller = new AbortController();
     controller.abort(new Error("gone"));
-    await assert.rejects(unless_aborted(deferred<string>().promise, controller.signal), /gone/);
+    const work = deferred<string>();
+    await assert.rejects(unless_aborted(work.promise, controller.signal), /gone/);
+    // The wait is over, but the promise is still observed: a rejection now
+    // must not surface as an unhandled one, which would fail this test.
+    work.reject(new Error("late"));
+    await new Promise((resolve) => setImmediate(resolve));
   });
 
   it("lets the pending work finish on its own after an abort", async () => {

@@ -22,6 +22,7 @@ describe("the common package interface", () => {
       "map_ok",
       "ok_or_throw",
       "parse_boolean",
+      "parse_duration_ms",
       "parse_frontmatter",
       "parse_iso_date",
       "parse_positive_int",

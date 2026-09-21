@@ -42,6 +42,7 @@ export {
 
 export {
   parse_iso_date,
+  parse_duration_ms,
 } from "#common/time.js";
 
 export {

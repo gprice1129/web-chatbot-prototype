@@ -5,7 +5,11 @@
 // Ally is conversational: the handler replays the chat's prior user/assistant
 // messages from the database into the model's memory, appends the new message,
 // and answers under the Ally persona. The exchange (user message + assistant
-// reply) is then recorded on the chat. Response: `{ message: string[] }`.
+// reply) is then recorded on the chat. Response:
+// `{ message: string[], tool_rounds: [{ text, calls }] }` (plus optional `debug`
+// in debug mode), where each tool round holds the model's preface and the
+// calls it made. Pass `Accept: text/event-stream` for SSE (`text` /
+// `tool_calls` / `tool_round` / `done` / `error`) instead of a single JSON body.
 //
 //   npm run ally -- <chat-id> [message] [base-url]
 //
@@ -37,6 +41,7 @@ interface AllyOptions {
 
 interface AllyResult {
   message: string[];
+  tool_rounds: { text: string[]; calls: { name: string; input: unknown; ok: boolean }[] }[];
 }
 
 export async function ally(opts: AllyOptions): Promise<AllyResult> {
@@ -63,7 +68,7 @@ export async function ally(opts: AllyOptions): Promise<AllyResult> {
   //    chat belongs to the user (404 otherwise), loads prior user/assistant
   //    turns for conversational memory, generates a reply, and records both the
   //    user message and the assistant reply on the chat. Response:
-  //    `{ message: string[] }` — the reply's text blocks.
+  //    `{ message: string[], tool_rounds: [...] }` — reply text blocks plus tool rounds.
   const ally_res = await fetch(
     `${opts.base_url}/api/applications/ally`,
     {
@@ -111,6 +116,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   for (const message of conversation) {
     const result = await ally({ base_url, chat_id, message, username, password });
     console.log(`\n> ${message}\n`);
-    console.log(result.message.join("\n"));
+    console.log(result.message.join("\n\n"));
   }
 }
