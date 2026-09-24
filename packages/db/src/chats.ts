@@ -32,16 +32,21 @@ class ChatDbService {
     return result.rows;
   }
 
-  async create_chat(
-    user_id: string, title: string, application_slug: string
+  async create_chat(user_id: string, title: string): Promise<Chat> {
+    const result = await this._exec.query(
+      `INSERT INTO chats (user_id, title) VALUES ($1, $2) RETURNING *`,
+      [user_id, title]);
+    return result.rows[0];
+  }
+
+  async register_chat(
+    chat_id: string, user_id: string, application_id: string
   ): Promise<Chat | null> {
     const result = await this._exec.query(
-      `INSERT INTO chats (user_id, title, application_id)
-       SELECT $1, $2, a.id
-         FROM applications a
-        WHERE lower(a.slug) = lower($3) AND a.enabled
-       RETURNING *`,
-      [user_id, title, application_slug]);
+      `UPDATE chats SET application_id = $3
+        WHERE id = $1 AND user_id = $2 AND application_id IS NULL
+        RETURNING *`,
+      [chat_id, user_id, application_id]);
     assert(result.rows.length <= 1);
     if (result.rows.length === 0) return null;
     return result.rows[0];

@@ -34,8 +34,7 @@ describe("with_transaction", () => {
     const user_id = await make_user(pool, "commits");
 
     const chat_id = await db.transaction(async (tx) => {
-      const chat = await tx.chat_db.create_chat(user_id, "kept", "ally");
-      assert.ok(chat);
+      const chat = await tx.chat_db.create_chat(user_id, "kept");
       const project = await tx.project_db.create_project(user_id, "kept");
       await tx.project_db.add_chat_to_project(project.id, chat.id, user_id);
       return chat.id;
@@ -53,8 +52,7 @@ describe("with_transaction", () => {
 
     await assert.rejects(
       db.transaction(async (tx) => {
-        const chat = await tx.chat_db.create_chat(user_id, "discarded", "ally");
-        assert.ok(chat);
+        const chat = await tx.chat_db.create_chat(user_id, "discarded");
         const project = await tx.project_db.create_project(user_id, "discarded");
         await tx.project_db.add_chat_to_project(project.id, chat.id, user_id);
         throw new Boom("body failed");
@@ -70,7 +68,7 @@ describe("with_transaction", () => {
 
     await assert.rejects(
       db.transaction(async (tx) => {
-        await tx.chat_db.create_chat(user_id, "discarded", "ally");
+        await tx.chat_db.create_chat(user_id, "discarded");
         throw new Boom("the original failure");
       }),
       (err: unknown) => err instanceof Boom &&
@@ -119,7 +117,7 @@ describe("with_transaction enlistment", () => {
 
     await assert.rejects(
       db.transaction(async (tx) => {
-        await tx.chat_db.create_chat(user_id, "enlisted", "ally");
+        await tx.chat_db.create_chat(user_id, "enlisted");
         await db.project_db.create_project(user_id, "not enlisted");
         throw new Boom("body failed");
       }),
@@ -133,9 +131,9 @@ describe("with_transaction enlistment", () => {
     const user_id = await make_user(pool, "nonmutating");
 
     await db.transaction(async (tx) => {
-      await tx.chat_db.create_chat(user_id, "in tx", "ally");
+      await tx.chat_db.create_chat(user_id, "in tx");
     });
-    await db.chat_db.create_chat(user_id, "after tx", "ally");
+    await db.chat_db.create_chat(user_id, "after tx");
 
     assert.equal(await count_by_user(pool, "chats", user_id), 2);
   });
@@ -153,11 +151,11 @@ describe("with_transaction connection handling", () => {
 
     for (let i = 0; i < 25; i++) {
       await db.transaction(async (tx) => {
-        await tx.chat_db.create_chat(user_id, `ok-${i}`, "ally");
+        await tx.chat_db.create_chat(user_id, `ok-${i}`);
       });
       await assert.rejects(
         db.transaction(async (tx) => {
-          await tx.chat_db.create_chat(user_id, `bad-${i}`, "ally");
+          await tx.chat_db.create_chat(user_id, `bad-${i}`);
           throw new Boom("discarded");
         }),
         Boom);
@@ -174,7 +172,7 @@ describe("with_transaction connection handling", () => {
 
     await assert.rejects(
       db.transaction(async () => { throw new Boom("discarded"); }), Boom);
-    await db.chat_db.create_chat(user_id, "after a failed transaction", "ally");
+    await db.chat_db.create_chat(user_id, "after a failed transaction");
 
     assert.equal(await count_by_user(pool, "chats", user_id), 1);
   });
