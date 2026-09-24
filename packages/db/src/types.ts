@@ -56,6 +56,7 @@ interface Chat {
   id: string;
   user_id: string;
   title: string;
+  application_id: string | null;
   metadata: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
