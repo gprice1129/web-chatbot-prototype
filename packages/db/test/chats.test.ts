@@ -19,18 +19,11 @@ after(async () => {
   await db.close();
 });
 
-// The id of a seeded application.
-async function application_id(slug: string): Promise<string> {
-  const result = await pool.query(
-    "SELECT id FROM applications WHERE slug = $1", [slug]);
-  return result.rows[0].id;
-}
-
 // The application a chat is registered to, read straight from the table.
 async function registered_to(chat_id: string): Promise<string | null> {
   const result = await pool.query(
-    "SELECT application_id FROM chats WHERE id = $1", [chat_id]);
-  return result.rows[0].application_id;
+    "SELECT application_slug FROM chats WHERE id = $1", [chat_id]);
+  return result.rows[0].application_slug;
 }
 
 describe("create_chat", () => {
@@ -39,7 +32,7 @@ describe("create_chat", () => {
 
     const chat = await db.chat_db.create_chat(user_id, "c");
 
-    assert.equal(chat.application_id, null);
+    assert.equal(chat.application_slug, null);
   });
 });
 
@@ -47,37 +40,33 @@ describe("register_chat", () => {
   it("registers an unregistered chat", async () => {
     const user_id = await make_user(pool, "registers");
     const chat_id = await make_chat(pool, user_id);
-    const ally = await application_id("ally");
 
-    const chat = await db.chat_db.register_chat(chat_id, user_id, ally);
+    const chat = await db.chat_db.register_chat(chat_id, user_id, "ally");
 
     assert.ok(chat);
-    assert.equal(chat.application_id, ally);
+    assert.equal(chat.application_slug, "ally");
   });
 
   it("registers a chat that already has messages", async () => {
     const user_id = await make_user(pool, "has-messages");
     const chat_id = await make_chat(pool, user_id);
     await add_message(pool, chat_id, "user");
-    const ally = await application_id("ally");
 
-    const chat = await db.chat_db.register_chat(chat_id, user_id, ally);
+    const chat = await db.chat_db.register_chat(chat_id, user_id, "ally");
 
     assert.ok(chat);
-    assert.equal(chat.application_id, ally);
+    assert.equal(chat.application_slug, "ally");
   });
 
   it("refuses a chat that is already registered", async () => {
     const user_id = await make_user(pool, "already");
     const chat_id = await make_chat(pool, user_id);
-    const ally = await application_id("ally");
-    await db.chat_db.register_chat(chat_id, user_id, ally);
+    await db.chat_db.register_chat(chat_id, user_id, "ally");
 
-    const chat = await db.chat_db.register_chat(
-      chat_id, user_id, await application_id("grant-reviewer"));
+    const chat = await db.chat_db.register_chat(chat_id, user_id, "grant-reviewer");
 
     assert.equal(chat, null);
-    assert.equal(await registered_to(chat_id), ally);
+    assert.equal(await registered_to(chat_id), "ally");
   });
 
   it("refuses another user's chat", async () => {
@@ -85,11 +74,42 @@ describe("register_chat", () => {
     const other_id = await make_user(pool, "other");
     const chat_id = await make_chat(pool, owner_id);
 
-    const chat = await db.chat_db.register_chat(
-      chat_id, other_id, await application_id("ally"));
+    const chat = await db.chat_db.register_chat(chat_id, other_id, "ally");
 
     assert.equal(chat, null);
     assert.equal(await registered_to(chat_id), null);
+  });
+
+  it("rejects a slug with no application", async () => {
+    const user_id = await make_user(pool, "unknown");
+    const chat_id = await make_chat(pool, user_id);
+
+    await assert.rejects(db.chat_db.register_chat(chat_id, user_id, "no-such-app"));
+    assert.equal(await registered_to(chat_id), null);
+  });
+});
+
+describe("get_chats_by_user", () => {
+  it("returns each chat's application slug, or null while unregistered", async () => {
+    const user_id = await make_user(pool, "lists");
+    const registered_id = await make_chat(pool, user_id, "registered");
+    const unregistered_id = await make_chat(pool, user_id, "unregistered");
+    await db.chat_db.register_chat(registered_id, user_id, "grant-reviewer");
+
+    const chats = await db.chat_db.get_chats_by_user(user_id);
+
+    const slugs = Object.fromEntries(chats.map((c) => [c.id, c.application_slug]));
+    assert.deepEqual(slugs, {
+      [registered_id]: "grant-reviewer",
+      [unregistered_id]: null,
+    });
+  });
+});
+
+describe("applications.slug", () => {
+  it("must be lowercase", async () => {
+    await assert.rejects(pool.query(
+      "INSERT INTO applications (slug, name) VALUES ('Mixed-Case', 'x')"));
   });
 });
 
@@ -98,7 +118,7 @@ describe("get_application_by_slug", () => {
     const app = await db.application_db.get_application_by_slug("ALLY");
 
     assert.ok(app);
-    assert.equal(app.id, await application_id("ally"));
+    assert.equal(app.slug, "ally");
   });
 
   it("returns null for an unknown slug", async () => {
