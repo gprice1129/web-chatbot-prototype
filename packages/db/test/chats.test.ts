@@ -89,6 +89,40 @@ describe("register_chat", () => {
   });
 });
 
+describe("update_chat_metadata", () => {
+  it("adds keys and keeps the ones it does not name", async () => {
+    const user_id = await make_user(pool, "meta");
+    const chat_id = await make_chat(pool, user_id, "c");
+    await db.chat_db.update_chat_metadata(chat_id, user_id, { a: 1 });
+
+    const chat = await db.chat_db.update_chat_metadata(chat_id, user_id, { b: { x: true } });
+
+    assert.deepEqual(chat?.metadata, { a: 1, b: { x: true } });
+  });
+
+  it("replaces a named key whole rather than merging into it", async () => {
+    const user_id = await make_user(pool, "meta-replace");
+    const chat_id = await make_chat(pool, user_id, "c");
+    await db.chat_db.update_chat_metadata(chat_id, user_id, { doc: { keep: 1, drop: 2 } });
+
+    const chat = await db.chat_db.update_chat_metadata(chat_id, user_id, { doc: { keep: 1 } });
+
+    assert.deepEqual(chat?.metadata, { doc: { keep: 1 } });
+  });
+
+  it("refuses another user's chat", async () => {
+    const owner = await make_user(pool, "meta-owner");
+    const other = await make_user(pool, "meta-other");
+    const chat_id = await make_chat(pool, owner, "c");
+
+    const chat = await db.chat_db.update_chat_metadata(chat_id, other, { a: 1 });
+
+    assert.equal(chat, null);
+    const row = await pool.query("SELECT metadata FROM chats WHERE id = $1", [chat_id]);
+    assert.deepEqual(row.rows[0].metadata, {});
+  });
+});
+
 describe("get_chats_by_user", () => {
   it("returns each chat's application slug, or null while unregistered", async () => {
     const user_id = await make_user(pool, "lists");

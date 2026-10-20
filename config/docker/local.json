@@ -25,7 +25,8 @@
   "secrets_dir": "./secrets",
   "sources": {
     "knowledge": "./packages/static/knowledge",
-    "prompts": "./packages/static/prompts"
+    "prompts": "./packages/static/prompts",
+    "templates": "./packages/static/templates"
   },
   "rate_limits": {
     "login": {

@@ -126,6 +126,28 @@ class ChatDbService {
     return result.rows[0];
   }
 
+  /*
+   * (string, string, Record<string, unknown>) => Chat | null
+   * Merge `patch` into the chat's metadata. The merge is shallow: each top-level
+   * key in `patch` replaces the same key wholesale, other keys are kept. A
+   * caller that owns one key (an application's document, say) writes that key
+   * whole and never touches the rest. Null for a chat that is not the user's.
+   * Side Effect: writes the chat
+   * Public
+   */
+  async update_chat_metadata(
+    chat_id: string, user_id: string, patch: Record<string, unknown>
+  ): Promise<Chat | null> {
+    const result = await this._exec.query(
+      `UPDATE chats SET metadata = metadata || $3::jsonb
+        WHERE id = $1 AND user_id = $2
+        RETURNING *`,
+      [chat_id, user_id, patch]);
+    assert(result.rows.length <= 1);
+    if (result.rows.length === 0) return null;
+    return result.rows[0];
+  }
+
   async delete_chat(chat_id: string, user_id: string): Promise<boolean> {
     const result = await this._exec.query(
       "DELETE FROM chats WHERE id = $1 AND user_id = $2",

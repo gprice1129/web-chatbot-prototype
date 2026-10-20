@@ -33,11 +33,17 @@ services:
       MODEL_SUMMARY_THINKING: ${MODEL_SUMMARY_THINKING:-}
       MODEL_SUMMARY_CACHING: ${MODEL_SUMMARY_CACHING:-}
       MODEL_SUMMARY_MAX_TOKENS: ${MODEL_SUMMARY_MAX_TOKENS:-}
-      # Where the two content sources are mounted (see volumes below). On
-      # startup the app builds the chatbot's knowledge graph from the first
-      # and reads every bot's prompts from the second.
+      MODEL_DOCUMENT_BUILDER_EFFORT: ${MODEL_DOCUMENT_BUILDER_EFFORT:-}
+      MODEL_DOCUMENT_BUILDER_THINKING: ${MODEL_DOCUMENT_BUILDER_THINKING:-}
+      MODEL_DOCUMENT_BUILDER_CACHING: ${MODEL_DOCUMENT_BUILDER_CACHING:-}
+      MODEL_DOCUMENT_BUILDER_MAX_TOKENS: ${MODEL_DOCUMENT_BUILDER_MAX_TOKENS:-}
+      # Where the three content sources are mounted (see volumes below). On
+      # startup the app builds the chatbot's knowledge graph from the first,
+      # reads every bot's prompts from the second, and the document-builder
+      # applications' templates from the third.
       KNOWLEDGE_PATH: /var/lib/aim_hi/knowledge
       PROMPTS_PATH: /var/lib/aim_hi/prompts
+      TEMPLATES_PATH: /var/lib/aim_hi/templates
       PGHOST: postgres
       PGPORT: 5432
       PGUSER: ${APP_DB_USER}
@@ -68,10 +74,12 @@ services:
       start_period: 10s
     volumes:
       - uploads:${FILES_BASE_PATH}
-      # The knowledge base and the prompts on the host, each mounted on its
-      # own. Both paths come from the config profile. They are both read only.
+      # The knowledge base, the prompts and the document templates on the
+      # host, each mounted on its own. The paths come from the config
+      # profile. All three are read only.
       - ${KNOWLEDGE_ROOT}:/var/lib/aim_hi/knowledge:ro
       - ${PROMPTS_ROOT}:/var/lib/aim_hi/prompts:ro
+      - ${TEMPLATES_ROOT}:/var/lib/aim_hi/templates:ro
     mem_limit: 768m
     cpus: "1.0"
 

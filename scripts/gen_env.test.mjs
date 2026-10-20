@@ -17,7 +17,7 @@ function minimal() {
     postgres: { superuser: "pg", app_user: "app", app_database: "db" },
     app: { files_base_path: "/uploads" },
     nginx: { server_name: "example.test" },
-    sources: { knowledge: "/kb", prompts: "/prompts" },
+    sources: { knowledge: "/kb", prompts: "/prompts", templates: "/templates" },
   };
 }
 

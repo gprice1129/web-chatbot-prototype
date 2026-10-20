@@ -67,7 +67,11 @@ const SHAPE = {
   nginx: { server_name: required("SERVER_NAME") },
   frontend: { base_path: "VITE_BASE_PATH", api_url: "VITE_API_URL" },
   secrets_dir: "SECRETS_DIR",
-  sources: { knowledge: required("KNOWLEDGE_ROOT"), prompts: required("PROMPTS_ROOT") },
+  sources: {
+    knowledge: required("KNOWLEDGE_ROOT"),
+    prompts: required("PROMPTS_ROOT"),
+    templates: required("TEMPLATES_ROOT"),
+  },
   rate_limits: {
     login: limit_vars("RATE_LIMIT_LOGIN"),
     ally: limit_vars("RATE_LIMIT_ALLY"),
@@ -82,6 +86,7 @@ const SHAPE = {
     ally: model_vars("MODEL_ALLY"),
     grant_review: model_vars("MODEL_GRANT_REVIEW"),
     summary: model_vars("MODEL_SUMMARY"),
+    document_builder: model_vars("MODEL_DOCUMENT_BUILDER"),
   },
 };
 
