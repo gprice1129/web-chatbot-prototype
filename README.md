@@ -11,7 +11,9 @@ packages/
   aim_hi_webserver/  # Fastify web server
 config/
   db/                # Database bootstrap script and migrations
-  nginx/             # Nginx config and SSL certificates
+  nginx/             # Gateway nginx config
+  systemd/           # Unit template the server installer fills in
+scripts/             # Env and secret generators, bundle and install scripts
 ```
 
 ## Setup
@@ -96,11 +98,9 @@ secrets in some other way.
 
 ### 3. TLS
 
-TLS is terminated by the host's nginx, which proxies to the gateway
-container on `127.0.0.1:8080` (plain HTTP). Configure certificates and the
-HTTP→HTTPS redirect in the host nginx, and make sure it sets
-`client_max_body_size 25m` and a `proxy_read_timeout` of at least 300s so
-large uploads and long-running API requests are not cut off at the edge.
+TLS is terminated by a reverse proxy on the host, which proxies to the
+gateway container on `127.0.0.1:8080` (plain HTTP). What that proxy must set
+is listed under [Reverse proxy](#reverse-proxy) below.
 
 ### 4. Rate limiting
 
@@ -148,18 +148,21 @@ yourself only if you run the server outside compose.
 
 ## Running
 
-### With Docker Compose (production)
+### With Docker Compose
 
 ```sh
 docker compose up --build
 ```
 
-This starts three services:
+This starts the stack:
 - **app** -- Node.js server on port 3000 (internal)
-- **nginx** -- Gateway serving the SPA and proxying `/api`, on `127.0.0.1:8080` (HTTP; sits behind the host's TLS-terminating nginx)
+- **parser** -- extracts text from uploaded files
+- **nginx** -- Gateway serving the SPA and proxying `/api`, on `127.0.0.1:8080` (HTTP; sits behind a TLS-terminating reverse proxy)
 - **postgres** -- PostgreSQL 17 database
 
-The database is automatically bootstrapped with the application role and migrations on first run.
+The database is automatically bootstrapped with the application role and
+migrations on first run. On a server, use the installer below instead of
+running compose by hand.
 
 ### Local development
 
@@ -169,6 +172,147 @@ npm run dev --workspace=packages/aim_hi_webserver
 ```
 
 Note: for local development you will need a running PostgreSQL instance and the corresponding `PG*` environment variables set (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`).
+
+## Installing on a server
+
+The server builds the images from source and runs the stack as a systemd
+service. It needs Docker with the compose plugin, systemd, and root. Nothing
+else: Node is not required on the server, and no git access is needed because
+the source arrives as a tarball.
+
+### 1. Bundle
+
+On your machine, with the submodules checked out:
+
+```sh
+scripts/bundle.sh                 # writes build/aim-hi-<sha>.tar.gz
+scp build/aim-hi-*.tar.gz server:
+```
+
+The bundle holds every tracked file of the root and the four submodules, and
+a `BUNDLE` file naming the commits inside. Secrets, `.env`, `override.json`
+and `node_modules` are never packed. The script warns when the working tree
+is dirty, since uncommitted edits to tracked files do get packed.
+
+### 2. Install
+
+On the server:
+
+```sh
+tar xzf aim-hi-<sha>.tar.gz -C /opt
+cd /opt/aim-hi
+sudo scripts/install.sh
+```
+
+The installer asks for the public hostname, the URL prefix the app is served
+under (default `/`), the model endpoint, its API key, and an optional first
+login. Then it builds the images, installs and starts the `aim-hi` service,
+and creates that login. It refuses to run a stack whose rendered env has
+anything but `AUTH_MODE=real`.
+
+What it leaves behind:
+
+| path | what |
+| --- | --- |
+| `config/docker/override.json` | this site's values, merged over the production profile |
+| `/etc/aim-hi/secrets/` | the four secret files (see [Secrets](#secrets)) |
+| `.env` | rendered from the profile plus override; regenerated on every run |
+| `/etc/systemd/system/aim-hi.service` | the unit, filled in from `config/systemd/aim-hi.service` |
+
+Every answer can be given as an environment variable instead, which is also
+how a non-interactive install works. The variables are listed at the top of
+`scripts/install.sh`.
+
+### 3. Operate
+
+```sh
+systemctl status aim-hi           # state of the service
+systemctl restart aim-hi          # stop and start the stack
+docker compose ps                 # each container's state (run in /opt/aim-hi)
+docker compose logs -f app        # application log
+scripts/inject_user.sh <username> <email>   # another login, or a password reset
+```
+
+The service is a thin shell around compose: start runs `docker compose up -d
+--wait` and fails if any container does not become healthy, stop runs
+`docker compose down`. Data lives in the `postgres_data` and `uploads`
+volumes, which a stop or restart never touches.
+
+### 4. Update
+
+Make a new bundle, unpack it over the same directory, and run the installer
+again:
+
+```sh
+tar xzf aim-hi-<sha>.tar.gz -C /opt
+cd /opt/aim-hi
+sudo scripts/install.sh
+```
+
+Existing site values and secrets are kept and not asked for again. The
+images are rebuilt and the service restarted, which applies any new
+migrations. The same works from a git checkout: pull, update the submodules,
+and re-run the installer there.
+
+### Migrating a stack started by hand
+
+Compose names its project, and so its volumes, after the directory it was
+started from. Running the installer in that same directory simply adopts the
+stack: secrets and data are reused and only changed containers are
+recreated.
+
+Running it from a new directory makes a new, empty project. The installer
+detects the old one, and offers to stop it and copy its database, uploads
+and secret files into the new install (`AIM_HI_MIGRATE=y` when there is no
+terminal). The old volumes are kept until you remove them; the installer
+prints the command. It refuses to proceed while an old stack still holds
+port 8080 and no migration was chosen.
+
+### Reverse proxy
+
+The gateway listens on `127.0.0.1:8080` only, so the app is unreachable
+until a TLS-terminating reverse proxy on the host fronts it. The installer
+does not touch your proxy. With nginx, a location along these lines is
+enough:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    client_max_body_size 25m;
+    proxy_read_timeout 300s;
+}
+```
+
+What matters in it:
+
+- `client_max_body_size 25m` matches the gateway's upload limit.
+- `proxy_read_timeout 300s` or more, so long model requests are not cut off
+  at the edge.
+- TLS is not optional. The session cookie is marked `Secure`, so a browser
+  only sends it over HTTPS and a plain-HTTP site cannot log in. Terminate
+  TLS in the proxy and redirect HTTP to HTTPS there.
+- Streamed bot replies carry `X-Accel-Buffering: no`, which nginx honours on
+  its own. Do not add that header to `proxy_ignore_headers`.
+- The production profile sets `TRUST_PROXY=2`: your proxy plus the gateway.
+  Add one per extra trusted hop (a CDN, say) via `app.trust_proxy` in
+  `override.json`, and do not raise it beyond the proxies you control, since
+  it makes the app honour `X-Forwarded-For`.
+
+To serve the app under a prefix, give that prefix as the URL path at install
+time (for example `/aimhi/`); the frontend is built for it. The proxy then
+strips the prefix before passing the request on, which the trailing slash on
+`proxy_pass` does:
+
+```nginx
+location /aimhi/ {
+    proxy_pass http://127.0.0.1:8080/;
+    # ...the same headers and limits as above
+}
+```
 
 ## Build
 
