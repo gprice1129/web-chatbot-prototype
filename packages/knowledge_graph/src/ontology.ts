@@ -67,6 +67,10 @@ interface GraphNode {
   deprecated: boolean;
   audiences: string[];
   aliases: string[];
+  // The subject the node belongs to. A corpus with no subject level yields "".
+  // Subjects are how a corpus that teaches more than one thing is told apart at
+  // search time.
+  subject: string;
   // relation -> target ids, the relation drawn from NODE_RELATIONS. Held as a
   // plain map because a node keeps whatever it was authored with, declared or
   // not. Single-target relations are normalized to arrays so callers never
@@ -99,6 +103,7 @@ const NODE_STATUSES = Object.freeze(["draft", "current", "deprecated"]);
 // Who a node was written for.
 const NODE_AUDIENCES = Object.freeze([
   "public", "patient", "clinician", "researcher", "staff", "admin", "developer",
+  "student", "faculty",
 ]);
 
 /*

@@ -1,6 +1,7 @@
 export {
   separate_frontmatter,
   parse_frontmatter,
+  as_list,
   _has_non_ascii,
   _has_content,
   _is_field_map,
@@ -50,6 +51,18 @@ function separate_frontmatter(text: string): { frontmatter: string; body: string
     frontmatter: normalized.slice(start, end + 1),
     body: -1 === after ? "" : normalized.slice(after + 1),
   };
+}
+
+/*
+ * (FrontmatterValue | undefined) => string[]
+ * Whatever a field declared, read as a list of names.
+ * Pure
+ * Public
+ */
+function as_list(value: FrontmatterValue | undefined): string[] {
+  if (undefined === value || null === value) return [];
+  if (Array.isArray(value)) return value.map((v) => String(v));
+  return [String(value)];
 }
 
 /*

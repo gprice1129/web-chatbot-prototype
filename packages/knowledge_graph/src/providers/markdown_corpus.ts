@@ -1,16 +1,19 @@
 export {
   load_markdown_corpus,
-  _NON_NODE_FILES,
+  NON_NODE_FILES,
 }
 
-import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import {
-  separate_frontmatter,
-  parse_frontmatter,
+  read_markdown,
+  find_markdown,
+  list_files,
+  ok_or_throw,
+  as_list,
   type Result,
   type FrontmatterValue,
+  type MarkdownDocument,
 } from "common";
 
 import {
@@ -36,14 +39,13 @@ import {
  * Application Usage
  * -----------------------------------------------------------------------------
  * One file is one node. The `edges` field of a file's frontmatter holds that
- * node's arcs. Reading a frontmatter block at all is `common`'s business, and
- * it knows nothing of nodes; this module decides which documents are nodes and
- * what their fields mean. It performs no retrieval and holds no index.
+ * node's arcs. This module decides which documents are nodes and what their
+ * fields mean.
  *
  * Four conditions produce a warning rather than a failure: an unreadable file,
  * a document with no id, a duplicate id, and a facet the ontology does not
- * declare. A warning names the file it concerns, since a caller holding only
- * nodes has no way to trace one back.
+ * declare. A warning names the file, since a caller holding only nodes has no
+ * way to trace one back.
  *
  * This module is the representation half of a provider, and the composition
  * root pairs it with a retrieval half. A representation sets an upper bound on
@@ -60,6 +62,7 @@ import {
  *
  * (string, (string) => void) => GraphNode[]
  * Documents that describe the graph, and documents with no id, yield no node.
+ * A root that cannot be listed throws: there is no corpus to be tolerant of.
  *
  * Use the `on_warning` handler to log issues on load or pass an empty handler
  * to silently ignore them.
@@ -68,11 +71,11 @@ import {
  */
 async function load_markdown_corpus(
     root: string, on_warning: (warning: string) => void): Promise<GraphNode[]> {
-  const files = await _find_markdown_files(root);
+  const files = list_files(ok_or_throw(await find_markdown(root), root));
   const nodes: GraphNode[] = [];
   // The value is the file that claimed an id first, so a duplicate can name it.
   const id_to_file = new Map<string, string>();
-  for (const file of files.sort()) {
+  for (const file of files) {
     if (!_is_node_file(file)) continue;
     const rel = path.relative(root, file);
     const read = await _read_node(file);
@@ -87,9 +90,27 @@ async function load_markdown_corpus(
     }
     id_to_file.set(node.id, rel);
     for (const drift of _find_ontology_drift(rel, node, declared_status)) on_warning(drift);
-    nodes.push(node);
+    nodes.push({ ...node, subject: _subject_of(rel) });
   }
   return nodes;
+}
+
+/*
+ * Idea: A node as its document describes it: everything but where it sits in
+ * the corpus. The subject comes from the layout, which a document cannot see.
+ */
+interface _DocumentNode {
+  id: string;
+  title: string;
+  summary: string;
+  type: string;
+  level: string | null;
+  draft: boolean;
+  deprecated: boolean;
+  audiences: string[];
+  aliases: string[];
+  edges: Record<string, string[]>;
+  body: string;
 }
 
 /*
@@ -101,7 +122,7 @@ async function load_markdown_corpus(
  * word is carried this far, and no further, so it can be warned about.
  */
 interface _ParsedDocument {
-  node: GraphNode;
+  node: _DocumentNode;
   declared_status: string;
 }
 
@@ -109,70 +130,73 @@ interface _ParsedDocument {
  * Idea: One document becomes one node, or says why it did not.
  *
  * (string) => Result<_ParsedDocument>
+ * A metadata block the grammar rejects fails the whole document. That is the
+ * parser's judgement, passed along unchanged; what failing costs is decided
+ * further up.
  * Side Effect: reads the filesystem
  * Private
  */
 async function _read_node(file: string): Promise<Result<_ParsedDocument>> {
-  let node_document: string;
-  try {
-    node_document = await fs.readFile(file, "utf8");
-  } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: `unreadable (${reason})` };
-  }
-  const parsed = _parse_document(node_document);
-  if (!parsed.ok) return parsed;
-  if ("" === parsed.value.node.id) {
+  const read = await read_markdown(file);
+  if (!read.ok) return read;
+  const parsed = _parse_document(read.value);
+  if ("" === parsed.node.id) {
     return { ok: false, error: "no 'id' declared; skipped" };
   }
-  return parsed;
+  return { ok: true, value: parsed };
 }
 
 /*
  * Idea: The boundary where a document stops being a file and becomes a node of
  * the domain.
  *
- * (string) => Result<_ParsedDocument>
+ * (MarkdownDocument) => _ParsedDocument
  * Every coercion the ontology needs happens here, so a caller never has to know
  * the shape of the document. A lifecycle word the ontology does not declare
  * leaves the node neither draft nor deprecated, which is how an unreadable term
  * has always been treated: the node stays as findable as any other.
- *
- * A metadata block the grammar rejects fails the whole document. That is the
- * parser's judgement, passed along unchanged; what failing costs is decided
- * further up.
  *
  * A document with no id yields a node with an empty one, for the caller to
  * reject.
  * Pure
  * Private
  */
-function _parse_document(node_document: string): Result<_ParsedDocument> {
-  const { frontmatter, body } = separate_frontmatter(node_document);
-  const parsed = parse_frontmatter(frontmatter);
-  if (!parsed.ok) return parsed;
-  const fields = parsed.value;
+function _parse_document(document: MarkdownDocument): _ParsedDocument {
+  const { fields, body } = document;
   const id = _as_string(fields["id"]).trim();
   const declared_status = _as_string(fields["status"]).trim();
   return {
-    ok: true,
-    value: {
-      declared_status,
-      node: {
-        id,
-        title:      _as_string(fields["title"]).trim() || id,
-        summary:    _as_string(fields["summary"]).trim(),
-        type:       _as_string(fields["type"]).trim(),
-        level:      _as_string(fields["level"]).trim() || null,
-        draft:      NODE_STATUS_DRAFT === declared_status,
-        deprecated: NODE_STATUS_DEPRECATED === declared_status,
-        audiences:  _as_list(fields["audiences"]),
-        aliases:    _as_list(fields["aliases"]),
-        edges:      _read_edges(fields["edges"]),
-        body:       body.trim(),
-      },
+    declared_status,
+    node: {
+      id,
+      title:      _as_string(fields["title"]).trim() || id,
+      summary:    _as_string(fields["summary"]).trim(),
+      type:       _as_string(fields["type"]).trim(),
+      level:      _as_string(fields["level"]).trim() || null,
+      draft:      NODE_STATUS_DRAFT === declared_status,
+      deprecated: NODE_STATUS_DEPRECATED === declared_status,
+      audiences:  _as_list(fields["audiences"]),
+      aliases:    _as_list(fields["aliases"]),
+      edges:      _read_edges(fields["edges"]),
+      body:       body.trim(),
     },
   };
+}
+
+/*
+ * Idea: Which subject a file belongs to, read from where it sits.
+ *
+ * (string) => string
+ * The ontology lays a corpus out as <subject>/<role>/<file>, so the subject is
+ * everything above the role directory. A corpus laid out flat as
+ * <role>/<file> has no subject level and yields "".
+ * Pure
+ * Private
+ */
+function _subject_of(rel: string): string {
+  const above_role = path.dirname(path.dirname(rel));
+  if ("." === above_role) return "";
+  return above_role.split(path.sep).join("/");
 }
 
 /*
@@ -202,7 +226,7 @@ function _read_edges(raw: FrontmatterValue | undefined): Record<string, string[]
  * Idea: Where what a node claims about itself and what the vocabulary allows
  * have drifted apart.
  *
- * (string, GraphNode, string) => string[]
+ * (string, _DocumentNode, string) => string[]
  * The lifecycle word comes in separately because it is the one facet the node
  * does not carry: by the time a node exists the term has already become two
  * booleans, and an undeclared one is indistinguishable from `current`.
@@ -217,7 +241,7 @@ function _read_edges(raw: FrontmatterValue | undefined): Record<string, string[]
  * Private
  */
 function _find_ontology_drift(
-    rel: string, node: GraphNode, declared_status: string): string[] {
+    rel: string, node: _DocumentNode, declared_status: string): string[] {
   const found: string[] = [];
   if ("" === node.type) {
     found.push(`${rel}: no 'type' declared; not filterable by type`);
@@ -244,31 +268,6 @@ function _find_ontology_drift(
 }
 
 /*
- * Idea: Every candidate document beneath a starting point, however deeply
- * nested.
- *
- * (string) => string[]
- * Paths are relative or absolute according to the root they were found from.
- * Side Effect: reads the filesystem
- * Private
- */
-async function _find_markdown_files(dir: string): Promise<string[]> {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  const found: string[] = [];
-  for (const entry of entries) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      found.push(...await _find_markdown_files(full));
-      continue;
-    }
-    if (entry.isFile() && full.endsWith(".md")) {
-      found.push(full);
-    }
-  }
-  return found;
-}
-
-/*
  * Idea: Telling a node of the graph apart from a document that describes the
  * graph.
  *
@@ -278,7 +277,7 @@ async function _find_markdown_files(dir: string): Promise<string[]> {
  * Private
  */
 function _is_node_file(file: string): boolean {
-  return !_NON_NODE_FILES.has(path.basename(file));
+  return !NON_NODE_FILES.has(path.basename(file));
 }
 
 /*
@@ -298,25 +297,23 @@ function _as_string(value: FrontmatterValue | undefined): string {
 }
 
 /*
- * Idea: Whatever a field declared, read as a list of names.
+ * Idea: Whatever a field declared, read as the names it holds, blanks dropped.
  *
  * (FrontmatterValue | undefined) => string[]
- * A field written as one bare value and one written as a list read the same, so
- * nothing downstream branches on cardinality.
+ * A blank entry is considered a typo and silently dropped.
  * Pure
  * Private
  */
 function _as_list(value: FrontmatterValue | undefined): string[] {
-  if (undefined === value || null === value) return [];
-  if (Array.isArray(value)) return value.map((v) => String(v)).filter((s) => "" !== s);
-  const single = String(value).trim();
-  return "" === single ? [] : [single];
+  return as_list(value).map((s) => s.trim()).filter((s) => "" !== s);
 }
 
 /*
  * Idea: Documents that describe the graph rather than being part of it.
+ * Anything that reads the corpus as nodes skips exactly these, so the loader
+ * and the validators agree on what the corpus contains.
  */
-const _NON_NODE_FILES = new Set([
+const NON_NODE_FILES = new Set([
   "ONTOLOGY.md",
   "TAXONOMY.md",
   "GRAPH.md",

@@ -4,6 +4,7 @@ import * as assert from "node:assert/strict";
 import {
   separate_frontmatter,
   parse_frontmatter,
+  as_list,
   _has_non_ascii,
   _has_content,
   _is_field_map,
@@ -160,5 +161,26 @@ describe("_is_field_map", () => {
     for (const value of [null, undefined, [1, 2], "text", 12, true]) {
       assert.equal(_is_field_map(value), false, JSON.stringify(value ?? null));
     }
+  });
+});
+
+describe("as_list", () => {
+  it("reads a bare value and a one-element list the same", () => {
+    assert.deepEqual(as_list("staff"), ["staff"]);
+    assert.deepEqual(as_list(["staff"]), ["staff"]);
+  });
+
+  it("reads a missing field as no names", () => {
+    assert.deepEqual(as_list(undefined), []);
+    assert.deepEqual(as_list(null), []);
+  });
+
+  it("renders non-string entries as text", () => {
+    assert.deepEqual(as_list([2026, true]), ["2026", "true"]);
+  });
+
+  it("keeps a blank entry for the caller to judge", () => {
+    assert.deepEqual(as_list(["a", "", "b"]), ["a", "", "b"]);
+    assert.deepEqual(as_list(""), [""]);
   });
 });

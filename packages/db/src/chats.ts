@@ -39,6 +39,19 @@ class ChatDbService {
     return result.rows[0];
   }
 
+  async register_chat(
+    chat_id: string, user_id: string, application_slug: string
+  ): Promise<Chat | null> {
+    const result = await this._exec.query(
+      `UPDATE chats SET application_slug = $3
+        WHERE id = $1 AND user_id = $2 AND application_slug IS NULL
+        RETURNING *`,
+      [chat_id, user_id, application_slug]);
+    assert(result.rows.length <= 1);
+    if (result.rows.length === 0) return null;
+    return result.rows[0];
+  }
+
   async get_chat_messages_by_chat_id(
     chat_id: string, user_id: string
   ): Promise<ChatMessageWithFileIds[]> {

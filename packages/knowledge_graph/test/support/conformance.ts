@@ -60,6 +60,15 @@ function describe_knowledge_graph_source(
       });
     });
 
+    describe("outline", () => {
+      it("lists every subject with its modules in id order", async () => {
+        const outline = await source.outline();
+        assert.deepEqual(outline.map((row) => row.subject), [""]);
+        assert.deepEqual(outline[0].modules.map((m) => m.id), ["m07-media-and-transcription"]);
+        assert.ok(outline[0].modules.every((m) => "module" === m.type));
+      });
+    });
+
     describe("search", () => {
       it("puts an exact id first", async () => {
         const hits = await source.search("whisper", ALL);
@@ -95,6 +104,12 @@ function describe_knowledge_graph_source(
       it("filters by level", async () => {
         const applied = await source.search("transcription", { ...ALL, levels: ["applied"] });
         assert.ok(applied.every((n) => "applied" === n.level));
+      });
+
+      it("filters by subject, and treats a flat corpus as the empty subject", async () => {
+        const flat = await source.search("transcription", { ...ALL, subjects: [""] });
+        assert.ok(flat.length > 0);
+        assert.deepEqual(await source.search("transcription", { ...ALL, subjects: ["ai"] }), []);
       });
 
       it("filters by audience", async () => {

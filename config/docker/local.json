@@ -1,0 +1,69 @@
+{
+  "anthropic": {
+    "base_url": "https://api.anthropic.com"
+  },
+  "postgres": {
+    "superuser": "postgres",
+    "app_user": "aim_hi_user",
+    "app_database": "aim_hi_db"
+  },
+  "app": {
+    "auth_mode": "mock",
+    "model_mode": "real",
+    "debug_mode": true,
+    "files_base_path": "/var/lib/aim_hi/uploads",
+    "trust_proxy": false,
+    "sse_heartbeat": null
+  },
+  "nginx": {
+    "server_name": "localhost"
+  },
+  "frontend": {
+    "base_path": "/",
+    "api_url": "/api"
+  },
+  "secrets_dir": "./secrets",
+  "sources": {
+    "knowledge": "./packages/static/knowledge",
+    "prompts": "./packages/static/prompts"
+  },
+  "rate_limits": {
+    "login": {
+      "max": 1000,
+      "window": "1 minute"
+    },
+    "ally": {
+      "max": 1000,
+      "window": "1 minute"
+    },
+    "grant_review": {
+      "max": 1000,
+      "window": "1 hour"
+    }
+  },
+  "login_limits": {
+    "username_max_length": 64,
+    "password_max_length": 256,
+    "body_limit": 4096
+  },
+  "models": {
+    "ally": {
+      "effort": null,
+      "thinking": null,
+      "caching": null,
+      "max_tokens": null
+    },
+    "grant_review": {
+      "effort": null,
+      "thinking": null,
+      "caching": null,
+      "max_tokens": null
+    },
+    "summary": {
+      "effort": null,
+      "thinking": null,
+      "caching": null,
+      "max_tokens": null
+    }
+  }
+}

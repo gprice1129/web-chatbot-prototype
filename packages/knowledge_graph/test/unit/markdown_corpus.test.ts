@@ -1,10 +1,12 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 
 import {
   load_markdown_corpus,
-  _NON_NODE_FILES,
+  NON_NODE_FILES,
 } from "#kg/providers/markdown_corpus.js";
 import type { GraphNode } from "#kg/ontology.js";
 import { KB_ROOT, KB_NODE_COUNT } from "../support/conformance.ts";
@@ -29,7 +31,7 @@ describe("load_markdown_corpus", () => {
   it("loads every node file and nothing else", () => {
     assert.equal(corpus.nodes.length, KB_NODE_COUNT);
     assert.equal(corpus.nodes.some((n) => "readme-impostor" === n.id), false);
-    for (const name of _NON_NODE_FILES) {
+    for (const name of NON_NODE_FILES) {
       assert.equal(corpus.warnings.some((w) => w.includes(name)), false, name);
     }
     for (const warning of corpus.warnings) {
@@ -63,12 +65,36 @@ describe("load_markdown_corpus", () => {
     assert.match(risk.body, /^# Fabricated citations/);
   });
 
-  it("yields nothing that says where a node was read from", () => {
+  it("keeps a node's place in the corpus only as its subject, never as a path", () => {
     const risk = node("hallucinated-citations");
     assert.deepEqual(
       Object.keys(risk).sort(),
       ["aliases", "audiences", "body", "deprecated", "draft", "edges", "id",
-       "level", "summary", "title", "type"]);
+       "level", "subject", "summary", "title", "type"]);
+  });
+
+  it("reads a flat corpus as having no subject", () => {
+    assert.equal(node("hallucinated-citations").subject, "");
+    assert.equal(node("m07-media-and-transcription").subject, "");
+  });
+
+  it("reads the subject from the directory above a node's role directory", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "kg-subjects-"));
+    try {
+      const source = path.join(KB_ROOT, "atoms", "whisper.md");
+      for (const [subject, name] of [["ai", "whisper.md"], ["uab/it", "whisper.md"]]) {
+        await fs.mkdir(path.join(root, subject, "atoms"), { recursive: true });
+        await fs.copyFile(source, path.join(root, subject, "atoms", name));
+      }
+      const { nodes, warnings } = await load(root);
+      // The two copies share an id, so the loader keeps the first and warns.
+      assert.equal(warnings.length, 1);
+      assert.deepEqual(nodes.map((n) => n.subject), ["ai"]);
+      const only_uab = await load(path.join(root, "uab"));
+      assert.deepEqual(only_uab.nodes.map((n) => n.subject), ["it"]);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
   });
 });
 

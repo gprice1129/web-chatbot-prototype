@@ -26,6 +26,7 @@ export type {
 // than in method: nodes in, nodes out.
 export type {
   SearchFilters,
+  SubjectOutline,
   KnowledgeGraphSource,
 } from "#kg/port.js";
 
@@ -33,6 +34,7 @@ export type {
 // halves of one provider, composed at the call site.
 export {
   load_markdown_corpus,
+  NON_NODE_FILES,
 } from "#kg/providers/markdown_corpus.js";
 
 export {

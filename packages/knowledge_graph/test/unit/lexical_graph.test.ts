@@ -61,6 +61,33 @@ describe("LexicalGraph get", () => {
   });
 });
 
+describe("LexicalGraph outline", () => {
+  it("groups modules by subject, subjects and modules in id order", async () => {
+    const module = nodes.find((node) => "module" === node.type)!;
+    const atom = nodes.find((node) => "whisper" === node.id)!;
+    const test_graph = new LexicalGraph([
+      { ...module, id: "z-module", subject: "uab" },
+      { ...atom, id: "lonely-atom", subject: "z" },
+      { ...module, id: "a-module", subject: "uab" },
+      { ...module, id: "m-module", subject: "ai" },
+    ]);
+    const outline = await test_graph.outline();
+    assert.deepEqual(outline.map((row) => row.subject), ["ai", "uab", "z"]);
+    assert.deepEqual(outline[1].modules.map((m) => m.id), ["a-module", "z-module"]);
+    assert.deepEqual(outline[2].modules, []);
+  });
+
+  it("filters search by subject", async () => {
+    const atom = nodes.find((node) => "whisper" === node.id)!;
+    const test_graph = new LexicalGraph([
+      { ...atom, id: "whisper-ai", subject: "ai" },
+      { ...atom, id: "whisper-uab", subject: "uab" },
+    ]);
+    const hits = await test_graph.search("whisper", { limit: 5, subjects: ["uab"] });
+    assert.deepEqual(hits.map((h) => h.id), ["whisper-uab"]);
+  });
+});
+
 describe("LexicalGraph scoring", () => {
   it("scores a match above zero and ranks the best first", () => {
     const hits = graph.search_scored("fabricated citations in a manuscript", ALL);
