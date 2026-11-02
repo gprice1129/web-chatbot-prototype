@@ -1,0 +1,27 @@
+# aim-hi.service
+#
+# A thin systemd shell around the docker compose stack. Start brings the
+# stack up and waits until every container is healthy; stop takes it down.
+# The containers themselves are supervised by dockerd, so this unit only
+# gives the stack a name, a place in the boot order, and an on/off switch.
+#
+# scripts/install.sh fills in the placeholders and installs this file.
+
+[Unit]
+Description=AIM-HI chatbot (docker compose stack)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=@ROOT@
+ExecStart=@DOCKER@ compose up -d --wait --no-build
+ExecStop=@DOCKER@ compose down
+# First start initialises postgres, runs migrations, and builds the
+# knowledge graph before the app reports healthy.
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target
