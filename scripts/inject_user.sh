@@ -5,75 +5,71 @@ set -euo pipefail
 #
 # Creates (or, on re-run, password-resets) a local-credential user
 # directly in the running Postgres container, bypassing the normal
-# sign-up flow. Handy for seeding a login during development.
+# sign-up flow. There is no sign-up route, so this is how the first
+# login on a fresh install is made.
 #
-# The password is hashed with argon2id on the host using the project's
-# own `argon2` dependency, so the resulting PHC string matches what
-# AuthService produces (see packages/aim_hi_webserver/src/lib/auth.ts)
-# and authenticate_user() will accept it. The row is then written by
-# execing `psql` inside the DB container.
-#
-# The container already carries APP_DB_USER / APP_DB_NAME in its
-# environment (see docker-compose.yml), so the script resolves the role
-# and database from inside the container -- no host-side env file needed.
+# Everything runs inside the compose stack, so the host needs only
+# Docker. The password is hashed with argon2id by the app container,
+# using the same `argon2` dependency AuthService uses (see
+# packages/aim_hi_webserver/src/lib/auth.ts), so authenticate_user()
+# accepts the result. The row is then written by `psql` inside the
+# postgres container, which already carries APP_DB_USER / APP_DB_NAME
+# in its environment (see docker-compose.yml).
 #
 # Usage:
-#   scripts/inject_user.sh <username> <email> <password> [db_container]
+#   scripts/inject_user.sh <username> <email> <password>
 #
 # Example:
 #   scripts/inject_user.sh alice alice@example.com 's3cret!'
-#   scripts/inject_user.sh alice alice@example.com 's3cret!' aim-hi-postgres-1
 #
-# The postgres container can be given as the optional 4th argument. If
-# omitted it falls back to the DB_CONTAINER env var, then to "postgres".
-# (Compose no longer pins container_name, so the running name is usually
-# something like <project>-postgres-1 -- find it with `docker compose ps`.)
+# The stack must be up (`docker compose up -d` or the aim-hi service).
 #
 # Notes:
 #   * Re-running with an existing username updates that user's email,
 #     password, and marks email_verified -- i.e. it doubles as a
-#     dev-time password reset.
+#     password reset.
 #   * Uniqueness is enforced case-insensitively on both username and
 #     email. If the email already belongs to a *different* user, psql
 #     reports a unique-violation and the script exits non-zero.
 
 usage() {
-  echo "usage: $0 <username> <email> <password> [db_container]" >&2
+  echo "usage: $0 <username> <email> <password>" >&2
   exit 2
 }
 
-[ "$#" -ge 3 ] && [ "$#" -le 4 ] || usage
+[ "$#" -eq 3 ] || usage
 USERNAME="$1"
 EMAIL="$2"
 PASSWORD="$3"
-# Container name: explicit 4th arg wins, then $DB_CONTAINER, then "postgres".
-DB_CONTAINER="${4:-${DB_CONTAINER:-postgres}}"
+[ -n "$USERNAME" ] && [ -n "$EMAIL" ] && [ -n "$PASSWORD" ] || usage
 
-[ -n "$USERNAME" ] && [ -n "$EMAIL" ] && [ -n "$PASSWORD" ] && [ -n "$DB_CONTAINER" ] || usage
-
-# Resolve the project root (parent of this script's dir) so node picks up
-# the workspace's node_modules/argon2 regardless of where we're invoked.
+# Compose resolves docker-compose.yml and .env from the project root.
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+cd "$ROOT_DIR"
 
-# Fail early with a clear message if the container isn't up.
-if ! docker exec "$DB_CONTAINER" true 2>/dev/null; then
-  echo "error: DB container '$DB_CONTAINER' is not running." >&2
-  echo "       start it with 'docker compose up' or set DB_CONTAINER." >&2
+# Fail early with a clear message if the stack isn't up.
+if ! docker compose exec -T app true 2>/dev/null; then
+  echo "error: the app container is not running." >&2
+  echo "       start the stack with 'docker compose up -d' first." >&2
   exit 1
 fi
 
-# Hash the password with argon2id (argon2's default) on the host. The
-# password is passed as a process argument so it never lands in argv of
-# any shell-interpolated string.
+# Hash the password with argon2id (argon2's default) in the app container.
+# The password travels over stdin so it never appears in any argv.
 echo "Hashing password with argon2id..." >&2
 PASSWORD_HASH="$(
-  cd "$ROOT_DIR" && node -e '
+  printf '%s' "$PASSWORD" | docker compose exec -T app node -e '
     const argon2 = require("argon2");
-    argon2.hash(process.argv[1])
-      .then((h) => process.stdout.write(h))
-      .catch((err) => { console.error(err); process.exit(1); });
-  ' "$PASSWORD"
+    let password = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => { password += chunk; });
+    process.stdin.on("end", () => {
+      argon2.hash(password)
+        .then((h) => process.stdout.write(h))
+        .catch((err) => { console.error(err); process.exit(1); });
+    });
+  '
 )"
 
 if [ -z "$PASSWORD_HASH" ]; then
@@ -86,8 +82,8 @@ fi
 # emits as safely-quoted SQL string literals -- so quotes or '$' in any
 # input can't break out into SQL. APP_DB_USER / APP_DB_NAME expand from
 # the container's own environment. The SQL is fed to psql over stdin.
-echo "Injecting user '$USERNAME' into '$DB_CONTAINER'..." >&2
-docker exec -i "$DB_CONTAINER" sh -s "$USERNAME" "$EMAIL" "$PASSWORD_HASH" <<'OUTER'
+echo "Injecting user '$USERNAME'..." >&2
+docker compose exec -T postgres sh -s "$USERNAME" "$EMAIL" "$PASSWORD_HASH" <<'OUTER'
 set -e
 psql -v ON_ERROR_STOP=1 \
      --username "$APP_DB_USER" \
