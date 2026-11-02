@@ -17,10 +17,15 @@ set -euo pipefail
 # in its environment (see docker-compose.yml).
 #
 # Usage:
-#   scripts/inject_user.sh <username> <email> <password>
+#   scripts/inject_user.sh <username> <email>
 #
-# Example:
-#   scripts/inject_user.sh alice alice@example.com 's3cret!'
+# The password is never taken as an argument, so it stays out of shell
+# history and `ps`. On a terminal it is asked for twice with input
+# hidden. Otherwise it is read as one line from stdin, which lets the
+# installer and other scripts pipe it in:
+#
+#   scripts/inject_user.sh alice alice@example.com
+#   printf '%s\n' "$PASSWORD" | scripts/inject_user.sh alice alice@example.com
 #
 # The stack must be up (`docker compose up -d` or the aim-hi service).
 #
@@ -33,15 +38,41 @@ set -euo pipefail
 #     reports a unique-violation and the script exits non-zero.
 
 usage() {
-  echo "usage: $0 <username> <email> <password>" >&2
+  echo "usage: $0 <username> <email>   (password is prompted for, or read from stdin)" >&2
   exit 2
 }
 
-[ "$#" -eq 3 ] || usage
+[ "$#" -eq 2 ] || usage
 USERNAME="$1"
 EMAIL="$2"
-PASSWORD="$3"
-[ -n "$USERNAME" ] && [ -n "$EMAIL" ] && [ -n "$PASSWORD" ] || usage
+[ -n "$USERNAME" ] && [ -n "$EMAIL" ] || usage
+
+# Ask for the password twice with echo off, and insist the two match.
+prompt_password() {
+  local first second
+  printf 'Password for %s: ' "$USERNAME" >&2
+  read -rs first
+  echo >&2
+  printf 'Repeat password: ' >&2
+  read -rs second
+  echo >&2
+  if [ "$first" != "$second" ]; then
+    echo "error: passwords do not match." >&2
+    exit 1
+  fi
+  PASSWORD="$first"
+}
+
+# Take the password from a prompt on a terminal, else one line of stdin.
+if [ -t 0 ]; then
+  prompt_password
+else
+  IFS= read -r PASSWORD || true
+fi
+if [ -z "$PASSWORD" ]; then
+  echo "error: empty password." >&2
+  exit 1
+fi
 
 # Compose resolves docker-compose.yml and .env from the project root.
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
