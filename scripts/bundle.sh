@@ -19,16 +19,15 @@ set -euo pipefail
 #   scripts/bundle.sh                 writes build/aim-hi-<sha>.tar.gz
 #   scripts/bundle.sh <out.tar.gz>    writes the named file
 #
-# Then on the server:
-#   tar xzf aim-hi-<sha>.tar.gz -C /opt
+# The tarball has no top-level directory: it unpacks straight into the
+# directory given to tar, which becomes the install root and names the
+# compose project. Then on the server:
+#   mkdir -p /opt/aim-hi && tar xzf aim-hi-<sha>.tar.gz -C /opt/aim-hi
 #   cd /opt/aim-hi && sudo scripts/install.sh
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
-
-# The directory the tarball unpacks into.
-PREFIX="aim-hi"
 
 # Every submodule must be checked out, or the bundle silently lacks it.
 check_submodules() {
@@ -73,8 +72,8 @@ trap 'rm -rf "$TMP"' EXIT
 write_stamp "$TMP/BUNDLE"
 
 git ls-files --recurse-submodules -z \
-  | tar --null -T - -cf "$TMP/bundle.tar" --transform "s,^,$PREFIX/,"
-tar -rf "$TMP/bundle.tar" -C "$TMP" --transform "s,^,$PREFIX/," BUNDLE
+  | tar --null -T - -cf "$TMP/bundle.tar"
+tar -rf "$TMP/bundle.tar" -C "$TMP" BUNDLE
 gzip -c "$TMP/bundle.tar" > "$OUT"
 
-echo "wrote $OUT ($(du -h "$OUT" | cut -f1), unpacks into $PREFIX/)" >&2
+echo "wrote $OUT ($(du -h "$OUT" | cut -f1), no top-level directory)" >&2

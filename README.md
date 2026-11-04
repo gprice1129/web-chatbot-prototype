@@ -196,10 +196,13 @@ is dirty, since uncommitted edits to tracked files do get packed.
 
 ### 2. Install
 
-On the server:
+On the server, unpack into the directory that is to be the install root.
+The tarball has no top-level directory of its own, and the directory's name
+becomes the compose project name:
 
 ```sh
-tar xzf aim-hi-<sha>.tar.gz -C /opt
+mkdir -p /opt/aim-hi
+tar xzf aim-hi-<sha>.tar.gz -C /opt/aim-hi
 cd /opt/aim-hi
 sudo scripts/install.sh
 ```
@@ -244,7 +247,7 @@ Make a new bundle, unpack it over the same directory, and run the installer
 again:
 
 ```sh
-tar xzf aim-hi-<sha>.tar.gz -C /opt
+tar xzf aim-hi-<sha>.tar.gz -C /opt/aim-hi
 cd /opt/aim-hi
 sudo scripts/install.sh
 ```
