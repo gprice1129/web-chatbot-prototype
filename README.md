@@ -212,7 +212,8 @@ The script refuses to deploy uncommitted edits to tracked files
 before touching the server (`--yes` skips the question). `--admin` offers
 the first-login prompt on an update too. ssh settings such as a port or a
 key belong in `~/.ssh/config` for the host. Without a terminal the run is
-unattended, which needs `--yes` and passwordless sudo on the server.
+unattended, which needs `--yes` and passwordless sudo on the server, and can
+only update: a first install has questions to ask.
 
 To roll back, check out the earlier commit and deploy it. Database
 migrations are not rolled back with it.
@@ -255,44 +256,26 @@ sudo scripts/install.sh
 
 Every answer the installer asks for can be given as an environment variable
 instead, which is also how a non-interactive install works. The variables
-are listed at the top of `scripts/install.sh`.
+are listed at the top of `scripts/install.sh`. Give the API key and the
+first login's password as files, through `AIM_HI_ANTHROPIC_API_KEY_FILE` and
+`AIM_HI_ADMIN_PASSWORD_FILE`, rather than as values on the sudo command
+line, which `ps` and the sudo log show.
 
 To update by hand, unpack the new bundle over the same directory and run the
 installer again. Unlike the deploy script, this leaves files behind that the
 new version no longer has.
 
-### Who may write the install root
+### Ownership of the install root
 
 Root runs everything in the install root at every start: the installer, the
-compose file, and the scripts it bind-mounts into containers. So the
-installer refuses a tree with files owned by anyone but root or a member of
-the install root's group, and on every run gives the whole tree that group
-and removes world write. It also refuses a tree that contains a symlink: a
-bundle never carries one, so any it finds is foreign and would redirect what
-root writes. Unpacking as root, by hand or through the deploy script, gives
-a root-owned tree.
-
-To let a group of people update by hand without root for the unpack, make
-the install root group-owned, group-writable and setgid before the first
-install:
-
-```sh
-sudo groupadd --system aim-hi
-sudo usermod -aG aim-hi alice          # each updater
-sudo install -d -m 2775 -o root -g aim-hi /opt/aim-hi
-```
-
-The installer then makes every directory group-writable and setgid as well,
-so a member can unpack an update without root and install it with sudo:
-
-```sh
-(umask 002 && tar xzf aim-hi-<sha>.tar.gz -C /opt/aim-hi)
-cd /opt/aim-hi
-sudo scripts/install.sh
-```
-
-Members of that group can change what root runs, so it must hold only people
-who have sudo anyway.
+compose file, and the scripts it bind-mounts into containers. So the install
+root, every directory above it, and everything in it must be owned by root,
+writable by nobody else, and free of symlinks; a bundle never carries one, so
+any symlink found there is foreign and would redirect what root writes. The
+same holds for the secrets directory. Both the installer and the deploy
+script check this before they touch anything and refuse otherwise, naming
+the offending path. Unpacking as root, by hand or through the deploy script,
+gives such a tree.
 
 ### Operate
 

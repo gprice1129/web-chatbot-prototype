@@ -21,7 +21,8 @@ set -euo pipefail
 # The server needs an ssh login for that user and sudo for them; everything
 # else is the installer's business. ssh settings such as a port or a key
 # belong in ~/.ssh/config for the host. Without a terminal here the run is
-# unattended, which needs --yes and passwordless sudo on the server.
+# unattended, which needs --yes and passwordless sudo on the server, and can
+# only update: a first install has questions to ask.
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
@@ -104,11 +105,12 @@ confirm_plan() {
   esac
 }
 
-# Put the bundle and the server-side script in the user's cache on the server.
+# Put the bundle and the server-side script in the user's cache on the
+# server, readable by that user alone.
 upload() {
   log "uploading to $HOST:$STAGE"
   tar -C "$TMP" -cf - bundle.tar.gz deploy_remote.sh \
-    | ssh "${SSH_OPTS[@]}" "$HOST" "mkdir -p $STAGE && tar -xf - -C $STAGE"
+    | ssh "${SSH_OPTS[@]}" "$HOST" "mkdir -p $STAGE && chmod 700 $STAGE && tar -xf - -C $STAGE"
 }
 
 # Run the server-side script under sudo. With a terminal here, sudo and the
