@@ -259,8 +259,7 @@ are listed at the top of `scripts/install.sh`.
 
 To update by hand, unpack the new bundle over the same directory and run the
 installer again. Unlike the deploy script, this leaves files behind that the
-new version no longer has. The same works from a git checkout: pull, update
-the submodules, and re-run the installer there.
+new version no longer has.
 
 ### Who may write the install root
 
@@ -268,8 +267,10 @@ Root runs everything in the install root at every start: the installer, the
 compose file, and the scripts it bind-mounts into containers. So the
 installer refuses a tree with files owned by anyone but root or a member of
 the install root's group, and on every run gives the whole tree that group
-and removes world write. Unpacking as root, by hand or through the deploy
-script, gives a root-owned tree.
+and removes world write. It also refuses a tree that contains a symlink: a
+bundle never carries one, so any it finds is foreign and would redirect what
+root writes. Unpacking as root, by hand or through the deploy script, gives
+a root-owned tree.
 
 To let a group of people update by hand without root for the unpack, make
 the install root group-owned, group-writable and setgid before the first
@@ -311,16 +312,12 @@ volumes, which a stop or restart never touches.
 ### Migrating a stack started by hand
 
 Compose names its project, and so its volumes, after the directory it was
-started from. Running the installer in that same directory simply adopts the
-stack: secrets and data are reused and only changed containers are
-recreated.
-
-Running it from a new directory makes a new, empty project. The installer
-detects the old one, and offers to stop it and copy its database, uploads
-and secret files into the new install (`AIM_HI_MIGRATE=y` when there is no
-terminal). The old volumes are kept until you remove them; the installer
-prints the command. It refuses to proceed while an old stack still holds
-port 8080 and no migration was chosen.
+started from, so an install into a new directory makes a new, empty project.
+The installer detects the old one, and offers to stop it and copy its
+database, uploads and secret files into the new install (`AIM_HI_MIGRATE=y`
+when there is no terminal). The old volumes are kept until you remove them;
+the installer prints the command. It refuses to proceed while an old stack
+still holds port 8080 and no migration was chosen.
 
 ### Reverse proxy
 

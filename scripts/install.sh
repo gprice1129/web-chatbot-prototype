@@ -4,10 +4,11 @@ set -euo pipefail
 # install.sh
 #
 # Installs the stack on a server as a systemd service built from this
-# source tree. Run it as root from an unpacked bundle (see scripts/bundle.sh)
-# or a checkout with submodules. It assumes Docker with the compose plugin
-# and systemd are present, and that a TLS reverse proxy on the host will
-# front the gateway, which listens only on 127.0.0.1:8080.
+# source tree. Run it as root from an unpacked bundle (see scripts/bundle.sh);
+# scripts/deploy.sh does that from a developer machine. It assumes Docker
+# with the compose plugin and systemd are present, and that a TLS reverse
+# proxy on the host will front the gateway, which listens only on
+# 127.0.0.1:8080.
 #
 # What it does, in order:
 #   1. writes config/docker/override.json with this site's values
@@ -33,11 +34,13 @@ set -euo pipefail
 # also how an update from a newer bundle is applied.
 #
 # Root runs everything in this tree, so every file in it must belong to root
-# or to a member of the install root's group. The tree is given that group
-# and no world write on every run. A group-writable install root, e.g.
-# 'install -d -m 2775 -o root -g aim-hi /opt/aim-hi', makes every directory
-# group-writable with setgid, so the group can unpack an update without root.
-# Running this script still needs root, so that group must hold only sudoers.
+# or to a member of the install root's group, and the tree may hold no
+# symlink: a bundle never carries one, and root would otherwise write through
+# it. The tree is given that group and no world write on every run. A
+# group-writable install root, e.g. 'install -d -m 2775 -o root -g aim-hi
+# /opt/aim-hi', makes every directory group-writable with setgid, so the
+# group can unpack an update without root. Running this script still needs
+# root, so that group must hold only sudoers.
 #
 # A stack started by hand from another directory is a different compose
 # project with its own volumes. When one is found, the script offers to stop
@@ -51,8 +54,8 @@ set -euo pipefail
 #   AIM_HI_SECRETS_DIR  where secrets live (default /etc/aim-hi/secrets)
 #   AIM_HI_UNIT_DIR     where the unit goes (default /etc/systemd/system)
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
 cd "$ROOT_DIR"
 
 SERVICE="aim-hi"
@@ -153,12 +156,22 @@ is_group_writable() {
   [ -n "$(find "$1" -maxdepth 0 -perm -g=w)" ]
 }
 
-# Root runs everything in this tree, so its files may belong only to root or
-# to members of the install root's group. The tree is then made consistent:
-# that group throughout, no world write, and when the install root is
-# group-writable, every directory group-writable with setgid as well.
+# A bundle never carries a symlink, so one in the tree is foreign, and root
+# would write through it.
+refuse_symlinks() {
+  local link
+  link="$(find "$ROOT_DIR" -type l -print -quit)"
+  [ -z "$link" ] || die "$link is a symlink; the install tree may not contain any"
+}
+
+# Root runs everything in this tree, so it may hold no symlink and its files
+# may belong only to root or to members of the install root's group. The tree
+# is then made consistent: that group throughout, no world write, and when
+# the install root is group-writable, every directory group-writable with
+# setgid as well.
 adopt_tree() {
   local group owner
+  refuse_symlinks
   group="$(stat -c %G "$ROOT_DIR")"
   for owner in $(find "$ROOT_DIR" -printf '%u\n' | sort -u); do
     [ "$owner" = root ] && continue

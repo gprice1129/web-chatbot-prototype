@@ -45,10 +45,19 @@ ensure_install_root() {
   [ -d "$INSTALL_ROOT" ] || install -d -m 755 -o root -g root "$INSTALL_ROOT"
 }
 
+# A bundle never carries a symlink, so one in the tree is foreign, and the
+# prune and the extraction below would write through it.
+refuse_symlinks() {
+  local link
+  link="$(find "$INSTALL_ROOT" -type l -print -quit)"
+  [ -z "$link" ] || die "$link is a symlink; the install tree may not contain any"
+}
+
 # Remove what the previous deploy had and this bundle lacks, unpack the
 # bundle, and keep its file list for the next deploy.
 unpack() {
   local new old entry
+  refuse_symlinks
   new="$(mktemp)"
   old="$INSTALL_ROOT/$MANIFEST_NAME"
   tar -tzf "$BUNDLE" | LC_ALL=C sort > "$new"
