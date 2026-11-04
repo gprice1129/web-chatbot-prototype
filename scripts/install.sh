@@ -29,18 +29,20 @@ set -euo pipefail
 #   AIM_HI_ADMIN_EMAIL         first login's email
 #   AIM_HI_ADMIN_PASSWORD      first login's password
 #
+# The two secrets may instead name a file holding the value, as
+# AIM_HI_ANTHROPIC_API_KEY_FILE and AIM_HI_ADMIN_PASSWORD_FILE. Prefer that:
+# a value on the sudo command line shows in ps for the whole run and in the
+# sudo log.
+#
 # Re-running is safe: existing override.json and secrets are kept, .env is
 # re-rendered, images are rebuilt, and the service is restarted. That is
 # also how an update from a newer bundle is applied.
 #
-# Root runs everything in this tree, so every file in it must belong to root
-# or to a member of the install root's group, and the tree may hold no
-# symlink: a bundle never carries one, and root would otherwise write through
-# it. The tree is given that group and no world write on every run. A
-# group-writable install root, e.g. 'install -d -m 2775 -o root -g aim-hi
-# /opt/aim-hi', makes every directory group-writable with setgid, so the
-# group can unpack an update without root. Running this script still needs
-# root, so that group must hold only sudoers.
+# Root runs everything in this tree, so the install root, every directory
+# above it, and everything in it must be root's, writable by nobody else, and
+# no symlink; a bundle never carries one, and root would otherwise write
+# through it. The same holds for the secrets directory. The script refuses to
+# go on otherwise.
 #
 # A stack started by hand from another directory is a different compose
 # project with its own volumes. When one is found, the script offers to stop
@@ -93,21 +95,26 @@ ask() {
   printf -v "$name" '%s' "$value"
 }
 
-# Like ask, but with input hidden and the answer typed twice.
+# Like ask, but with input hidden and the answer typed twice. The value may
+# also come from a file named by AIM_HI_<name>_FILE.
 ask_secret() {
   local name="$1" prompt="$2"
-  local env_name="AIM_HI_$name" first second
+  local env_name="AIM_HI_$name" file_name="AIM_HI_${name}_FILE" first second
   first="${!env_name-}"
+  if [ -z "$first" ] && [ -n "${!file_name-}" ]; then
+    [ -r "${!file_name}" ] || die "cannot read ${!file_name} named by $file_name"
+    first="$(<"${!file_name}")"
+  fi
   if [ -z "$first" ] && is_interactive; then
     printf '%s: ' "$prompt" >&2
-    read -rs first
+    IFS= read -rs first
     echo >&2
     printf 'Repeat %s: ' "$prompt" >&2
-    read -rs second
+    IFS= read -rs second
     echo >&2
     if [ "$first" != "$second" ]; then die "the two entries do not match"; fi
   fi
-  if [ -z "$first" ]; then die "$env_name is required when not run from a terminal"; fi
+  if [ -z "$first" ]; then die "$env_name or $file_name is required when not run from a terminal"; fi
   printf -v "$name" '%s' "$first"
 }
 
@@ -137,7 +144,8 @@ preflight() {
   [ -f "$ROOT_DIR/packages/aim_hi_fe/package.json" ] || die "the frontend submodule is missing"
   [ -d "$ROOT_DIR/packages/static/knowledge" ] || die "the static submodule is missing"
   [ -f "$UNIT_TEMPLATE" ] || die "no unit template at $UNIT_TEMPLATE"
-  adopt_tree
+  valid_path "$SECRETS_DIR" || die "secrets directory '$SECRETS_DIR' must be an absolute path of letters, digits, '.', '_', '-' and '/'"
+  check_tree
   find_old_stack
   check_port
 }
@@ -146,43 +154,30 @@ preflight() {
 # The install tree
 # ---------------------------------------------------------------------------
 
-# Whether a user is in a group, by name.
-in_group() {
-  id -nG "$1" 2>/dev/null | tr ' ' '\n' | grep -qx "$2"
+# Whether a path is owned by root and writable by nobody else.
+is_roots_alone() {
+  [ "$(stat -c %u -- "$1")" -eq 0 ] && [ -z "$(find "$1" -maxdepth 0 -perm /022)" ]
 }
 
-# Whether a path has its group write bit set.
-is_group_writable() {
-  [ -n "$(find "$1" -maxdepth 0 -perm -g=w)" ]
-}
-
-# A bundle never carries a symlink, so one in the tree is foreign, and root
-# would write through it.
-refuse_symlinks() {
-  local link
-  link="$(find "$ROOT_DIR" -type l -print -quit)"
-  [ -z "$link" ] || die "$link is a symlink; the install tree may not contain any"
-}
-
-# Root runs everything in this tree, so it may hold no symlink and its files
-# may belong only to root or to members of the install root's group. The tree
-# is then made consistent: that group throughout, no world write, and when
-# the install root is group-writable, every directory group-writable with
-# setgid as well.
-adopt_tree() {
-  local group owner
-  refuse_symlinks
-  group="$(stat -c %G "$ROOT_DIR")"
-  for owner in $(find "$ROOT_DIR" -printf '%u\n' | sort -u); do
-    [ "$owner" = root ] && continue
-    in_group "$owner" "$group" && continue
-    die "$ROOT_DIR has files owned by '$owner', who is neither root nor in group '$group'; fix with: chown -R root:$group '$ROOT_DIR'"
+# A directory and every directory above it must be root's alone and no
+# symlink, or another account could swap what root works in.
+check_path() {
+  local dir="$1"
+  [ "$(realpath -e -- "$dir")" = "$dir" ] || die "$dir has a symlink in its path"
+  while :; do
+    is_roots_alone "$dir" || die "$dir must be owned by root and writable by nobody else"
+    [ "$dir" != / ] || break
+    dir="$(dirname -- "$dir")"
   done
-  chgrp -R "$group" "$ROOT_DIR"
-  chmod -R o-w "$ROOT_DIR"
-  if is_group_writable "$ROOT_DIR"; then
-    find "$ROOT_DIR" -type d -exec chmod g+ws {} +
-  fi
+}
+
+# Root runs everything in this tree, so it must be root's, writable by nobody
+# else and free of symlinks, and so must the path down to it.
+check_tree() {
+  local bad
+  check_path "$ROOT_DIR"
+  bad="$(find "$ROOT_DIR" \( -type l -o ! -user root -o -perm /022 \) -print -quit)"
+  [ -z "$bad" ] || die "$bad: the install tree must be root's, writable by nobody else, and hold no symlink; fix with: chown -R root:root '$ROOT_DIR' && chmod -R go-w '$ROOT_DIR'"
 }
 
 # ---------------------------------------------------------------------------
@@ -265,13 +260,15 @@ EOF
 
 # Refuse when something outside this project already holds the gateway port.
 check_port() {
-  local holder
-  holder="$(docker ps --filter publish=8080 \
-    --format '{{.Label "com.docker.compose.project.working_dir"}}\t{{.Names}}' \
-    | awk -F'\t' -v here="$ROOT_DIR" '$1 != here { print $2 }')"
-  [ -n "$holder" ] || return 0
-  if [ -n "$OLD_PROJECT" ] && [ "$MIGRATE" = y ]; then return 0; fi
-  die "port 8080 is held by container '$holder', which is not part of this install"
+  local rows dir name
+  rows="$(docker ps --filter publish=8080 \
+    --format '{{.Label "com.docker.compose.project.working_dir"}}\t{{.Names}}')"
+  while IFS=$'\t' read -r dir name; do
+    [ -n "$name" ] || continue
+    [ "$dir" != "$ROOT_DIR" ] || continue
+    if [ -n "$OLD_PROJECT" ] && [ "$MIGRATE" = y ]; then return 0; fi
+    die "port 8080 is held by container '$name', which is not part of this install"
+  done <<< "$rows"
 }
 
 # Bring the old secret files over so the copied database still opens. A
@@ -305,6 +302,15 @@ migrate_stack() {
   copy_volume "${OLD_PROJECT}_uploads" "${new}_uploads" uploads "$new"
 }
 
+# The postgres image the stack runs, read from docker-compose.yml so the two
+# cannot drift. It is already pulled and has what a volume copy needs.
+postgres_image() {
+  local image
+  image="$(sed -n 's/^[[:space:]]*image:[[:space:]]*\(postgres:[^[:space:]]*\).*/\1/p' "$ROOT_DIR/docker-compose.yml" | head -1)"
+  [ -n "$image" ] || die "no 'image: postgres:...' found in docker-compose.yml"
+  echo "$image"
+}
+
 # Copy one named volume into a fresh one that carries compose's labels, so
 # the stack adopts it as its own instead of warning about a foreign volume.
 copy_volume() {
@@ -319,7 +325,8 @@ copy_volume() {
   docker volume create \
     --label "com.docker.compose.project=$project" \
     --label "com.docker.compose.volume=$key" "$to" >/dev/null
-  docker run --rm -v "$from:/from:ro" -v "$to:/to" alpine sh -c 'cd /from && cp -a . /to'
+  docker run --rm --network none -v "$from:/from:ro" -v "$to:/to" "$(postgres_image)" \
+    sh -c 'cd /from && cp -a . /to'
   log "copied volume $from -> $to"
 }
 
@@ -327,10 +334,12 @@ copy_volume() {
 # 1. Site configuration -> config/docker/override.json
 # ---------------------------------------------------------------------------
 
-# Reject anything that could break the JSON or the URL it ends up in.
+# Reject anything that could break the JSON or the URL it ends up in. The
+# endpoint must be https, since the API key travels in a header.
 valid_hostname() { [[ "$1" =~ ^[A-Za-z0-9.-]+$ ]]; }
-valid_base_path() { [[ "$1" =~ ^/([A-Za-z0-9._-]+/)*$ ]]; }
-valid_url() { [[ "$1" =~ ^https?://[^[:space:]\"\\]+$ ]]; }
+valid_base_path() { [[ "$1" =~ ^/([A-Za-z0-9_-][A-Za-z0-9._-]*/)*$ ]]; }
+valid_url() { [[ "$1" =~ ^https://[^[:space:]\"\\]+$ ]]; }
+valid_path() { [[ "$1" =~ ^/[A-Za-z0-9._/-]+$ ]]; }
 
 # Ask for the site's values and write them as the override the production
 # profile is rendered with. An existing override is kept as it is.
@@ -342,9 +351,9 @@ configure_site() {
   ask SERVER_NAME "Public hostname (as in the browser's address bar)"
   valid_hostname "$SERVER_NAME" || die "hostname '$SERVER_NAME' has characters other than letters, digits, '.' and '-'"
   ask BASE_PATH "URL path the app is served under" "/"
-  valid_base_path "$BASE_PATH" || die "base path '$BASE_PATH' must start and end with '/'"
+  valid_base_path "$BASE_PATH" || die "base path '$BASE_PATH' must start and end with '/', with segments of letters, digits, '.', '_' and '-' that do not start with '.'"
   ask ANTHROPIC_BASE_URL "Anthropic-compatible model endpoint" "https://api.anthropic.com"
-  valid_url "$ANTHROPIC_BASE_URL" || die "'$ANTHROPIC_BASE_URL' is not an http(s) URL"
+  valid_url "$ANTHROPIC_BASE_URL" || die "'$ANTHROPIC_BASE_URL' is not an https URL; the API key travels in a header"
   write_override
   log "wrote $OVERRIDE"
 }
@@ -365,6 +374,16 @@ EOF
 # 2. Secrets
 # ---------------------------------------------------------------------------
 
+# The secrets directory, what is in it, and the path down to it must be
+# root's, writable by nobody else and no symlink, or another account could
+# read or swap what the containers get.
+check_secrets_dir() {
+  local bad
+  check_path "$SECRETS_DIR"
+  bad="$(find "$SECRETS_DIR" \( -type l -o ! -user root -o -perm /022 \) -print -quit)"
+  [ -z "$bad" ] || die "$bad: the secrets directory must be root's, writable by nobody else, and hold no symlink; fix with: chown -R root:root '$SECRETS_DIR'"
+}
+
 # Generate the random secrets and store the API key. gen_secrets.sh keeps
 # existing values, so the key is only asked for the first time, and sets
 # every file's mode (see there for why they are 0644 in a 0700 directory).
@@ -372,6 +391,7 @@ configure_secrets() {
   local key_file="$SECRETS_DIR/anthropic_api_key"
   mkdir -p "$SECRETS_DIR"
   chmod 700 "$SECRETS_DIR"
+  check_secrets_dir
   inherit_secrets
   if [ ! -s "$key_file" ]; then
     ask_secret ANTHROPIC_API_KEY "API key for the model endpoint"
@@ -412,7 +432,7 @@ render_env() {
   local image
   image="$(node_image)"
   log "no Node >= 22 on the host; rendering .env with $image"
-  docker run --rm -v "$ROOT_DIR:/app" -w /app "$image" \
+  docker run --rm --network none --mount "type=bind,source=$ROOT_DIR,target=/app" -w /app "$image" \
     node scripts/gen_env.mjs "$PROFILE" --force
 }
 
@@ -443,9 +463,12 @@ build_images() {
 
 # Fill the unit template in and (re)start the service.
 install_service() {
-  local unit="$UNIT_DIR/$SERVICE.service" docker_bin
+  local unit="$UNIT_DIR/$SERVICE.service" docker_bin text
   docker_bin="$(command -v docker)"
-  sed -e "s|@ROOT@|$ROOT_DIR|g" -e "s|@DOCKER@|$docker_bin|g" "$UNIT_TEMPLATE" > "$unit"
+  text="$(<"$UNIT_TEMPLATE")"
+  text="${text//@ROOT@/"$ROOT_DIR"}"
+  text="${text//@DOCKER@/"$docker_bin"}"
+  printf '%s\n' "$text" > "$unit"
   chmod 644 "$unit"
   log "installed $unit"
   systemctl daemon-reload
