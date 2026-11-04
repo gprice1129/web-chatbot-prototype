@@ -12,6 +12,10 @@ set -euo pipefail
 # are what is packed, so an uncommitted edit to a tracked file is included;
 # the script warns when the tree is dirty so that is never a surprise.
 #
+# Every entry is recorded as root's, with no group or world write, so that
+# unpacking as root on the server does not hand the tree to whichever
+# account happens to have the packer's uid there.
+#
 # A BUNDLE file at the top of the tarball records the root commit and each
 # submodule commit, so a server can say what it is running.
 #
@@ -66,14 +70,17 @@ SHA="$(git rev-parse --short HEAD)"
 OUT="${1:-build/aim-hi-$SHA.tar.gz}"
 mkdir -p "$(dirname "$OUT")"
 
-# Pack the tracked files, then append the stamp and compress.
+# Pack the tracked files, then append the stamp and compress. Entries are
+# recorded as root's with no group or world write, whatever the packer's
+# uid and umask.
+TAR_OPTS=(--owner=0 --group=0 --numeric-owner --mode=go-w)
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 write_stamp "$TMP/BUNDLE"
 
 git ls-files --recurse-submodules -z \
-  | tar --null -T - -cf "$TMP/bundle.tar"
-tar -rf "$TMP/bundle.tar" -C "$TMP" BUNDLE
+  | tar --null -T - "${TAR_OPTS[@]}" -cf "$TMP/bundle.tar"
+tar -rf "$TMP/bundle.tar" "${TAR_OPTS[@]}" -C "$TMP" BUNDLE
 gzip -c "$TMP/bundle.tar" > "$OUT"
 
 echo "wrote $OUT ($(du -h "$OUT" | cut -f1), no top-level directory)" >&2
