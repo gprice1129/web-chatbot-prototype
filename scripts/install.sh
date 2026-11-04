@@ -263,6 +263,7 @@ check_port() {
 
 # Bring the old secret files over so the copied database still opens. A
 # file that is already here must be identical, or the two would disagree.
+# The copies are root's; gen_secrets.sh then sets their mode.
 inherit_secrets() {
   [ -n "$OLD_PROJECT" ] && [ -n "$OLD_SECRETS_DIR" ] || return 0
   [ "$OLD_SECRETS_DIR" != "$SECRETS_DIR" ] || return 0
@@ -274,7 +275,7 @@ inherit_secrets() {
       cmp -s "$from" "$to" || die "$to differs from $from; the copied database needs the old one"
       continue
     fi
-    cp -p "$from" "$to"
+    cp "$from" "$to"
     log "copied secret $name from $OLD_SECRETS_DIR"
   done
 }
@@ -351,8 +352,9 @@ EOF
 # 2. Secrets
 # ---------------------------------------------------------------------------
 
-# Generate the random secrets and store the API key. gen_secrets.sh leaves
-# existing files alone, so the key is only asked for the first time.
+# Generate the random secrets and store the API key. gen_secrets.sh keeps
+# existing values, so the key is only asked for the first time, and sets
+# every file's mode (see there for why they are 0644 in a 0700 directory).
 configure_secrets() {
   local key_file="$SECRETS_DIR/anthropic_api_key"
   mkdir -p "$SECRETS_DIR"
@@ -360,7 +362,7 @@ configure_secrets() {
   inherit_secrets
   if [ ! -s "$key_file" ]; then
     ask_secret ANTHROPIC_API_KEY "API key for the model endpoint"
-    (umask 077 && printf '%s' "$ANTHROPIC_API_KEY" > "$key_file")
+    printf '%s' "$ANTHROPIC_API_KEY" > "$key_file"
     log "wrote $key_file"
   fi
   SECRETS_DIR="$SECRETS_DIR" "$SCRIPT_DIR/gen_secrets.sh"

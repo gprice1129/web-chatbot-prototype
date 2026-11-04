@@ -13,7 +13,7 @@ config/
   db/                # Database bootstrap script and migrations
   nginx/             # Gateway nginx config
   systemd/           # Unit template the server installer fills in
-scripts/             # Env and secret generators, bundle and install scripts
+scripts/             # Env and secret generators, bundle, install and deploy scripts
 ```
 
 ## Setup
@@ -91,10 +91,13 @@ SECRETS_DIR=/etc/aim-hi/secrets scripts/gen_secrets.sh
 ```
 
 Compose looks for `./secrets/` by default; override with the `SECRETS_DIR`
-variable in your env file. The files are `chmod 600` and the `secrets/`
-directory is gitignored. The app also accepts any of these as a plain
-`*_FILE` env var (e.g. `COOKIE_KEY_FILE`, `PGPASSWORD_FILE`) if you wire
-secrets in some other way.
+variable in your env file. The directory is `0700`, which is what keeps other
+users on the host out. The files are `0644`: compose bind-mounts each one with
+its host owner and mode, and the containers read them as unprivileged users
+(`node` in the app, `postgres` in the database), who could not open a
+root-owned `0600` file. The `secrets/` directory is gitignored. The app also
+accepts any of these as a plain `*_FILE` env var (e.g. `COOKIE_KEY_FILE`,
+`PGPASSWORD_FILE`) if you wire secrets in some other way.
 
 ### 3. TLS
 
@@ -180,9 +183,54 @@ service. It needs Docker with the compose plugin, systemd, and root. Nothing
 else: Node is not required on the server, and no git access is needed because
 the source arrives as a tarball.
 
-### 1. Bundle
+### Deploy in one step
 
-On your machine, with the submodules checked out:
+From a checkout with the submodules checked out, and an ssh login on the
+server that can sudo:
+
+```sh
+scripts/deploy.sh alice@server              # install root /opt/aim-hi
+scripts/deploy.sh alice@server /srv/aim-hi  # another install root
+```
+
+The script bundles the tree, uploads it, unpacks it on the server and runs
+the installer there under sudo. The sudo password and the installer's
+questions are asked in your terminal. A first install asks for the public
+hostname, the URL prefix the app is served under (default `/`), the model
+endpoint, its API key, and an optional first login. Then it builds the
+images, installs and starts the `aim-hi` service, and creates that login. It
+refuses to run a stack whose rendered env has anything but `AUTH_MODE=real`.
+
+An update asks nothing: site values and secrets are kept, the images are
+rebuilt and the service is restarted, which applies any new migrations.
+Files an earlier deploy put in the install root that the new bundle no
+longer has are removed; `.env`, `override.json` and anything else that never
+came from a bundle stay.
+
+The script refuses to deploy uncommitted edits to tracked files
+(`--allow-dirty` overrides) and shows the commits it is about to deploy
+before touching the server (`--yes` skips the question). `--admin` offers
+the first-login prompt on an update too. ssh settings such as a port or a
+key belong in `~/.ssh/config` for the host. Without a terminal the run is
+unattended, which needs `--yes` and passwordless sudo on the server.
+
+To roll back, check out the earlier commit and deploy it. Database
+migrations are not rolled back with it.
+
+What an install leaves behind on the server:
+
+| path | what |
+| --- | --- |
+| `config/docker/override.json` | this site's values, merged over the production profile |
+| `/etc/aim-hi/secrets/` | the four secret files (see [Secrets](#secrets)) |
+| `.env` | rendered from the profile plus override; regenerated on every run |
+| `BUNDLE`, `BUNDLE.files` | the commits inside the bundle, and its file list for the next deploy's cleanup |
+| `/etc/systemd/system/aim-hi.service` | the unit, filled in from `config/systemd/aim-hi.service` |
+
+### By hand
+
+The same in steps, for a server the checkout cannot reach over ssh. On your
+machine:
 
 ```sh
 scripts/bundle.sh                 # writes build/aim-hi-<sha>.tar.gz
@@ -194,39 +242,58 @@ a `BUNDLE` file naming the commits inside. Secrets, `.env`, `override.json`
 and `node_modules` are never packed. The script warns when the working tree
 is dirty, since uncommitted edits to tracked files do get packed.
 
-### 2. Install
-
-On the server, unpack into the directory that is to be the install root.
-The tarball has no top-level directory of its own, and the directory's name
-becomes the compose project name:
+On the server, unpack as root into the directory that is to be the install
+root. The tarball has no top-level directory of its own, and the directory's
+name becomes the compose project name:
 
 ```sh
-mkdir -p /opt/aim-hi
-tar xzf aim-hi-<sha>.tar.gz -C /opt/aim-hi
+sudo mkdir -p /opt/aim-hi
+sudo tar xzf aim-hi-<sha>.tar.gz -C /opt/aim-hi
 cd /opt/aim-hi
 sudo scripts/install.sh
 ```
 
-The installer asks for the public hostname, the URL prefix the app is served
-under (default `/`), the model endpoint, its API key, and an optional first
-login. Then it builds the images, installs and starts the `aim-hi` service,
-and creates that login. It refuses to run a stack whose rendered env has
-anything but `AUTH_MODE=real`.
+Every answer the installer asks for can be given as an environment variable
+instead, which is also how a non-interactive install works. The variables
+are listed at the top of `scripts/install.sh`.
 
-What it leaves behind:
+To update by hand, unpack the new bundle over the same directory and run the
+installer again. Unlike the deploy script, this leaves files behind that the
+new version no longer has. The same works from a git checkout: pull, update
+the submodules, and re-run the installer there.
 
-| path | what |
-| --- | --- |
-| `config/docker/override.json` | this site's values, merged over the production profile |
-| `/etc/aim-hi/secrets/` | the four secret files (see [Secrets](#secrets)) |
-| `.env` | rendered from the profile plus override; regenerated on every run |
-| `/etc/systemd/system/aim-hi.service` | the unit, filled in from `config/systemd/aim-hi.service` |
+### Who may write the install root
 
-Every answer can be given as an environment variable instead, which is also
-how a non-interactive install works. The variables are listed at the top of
-`scripts/install.sh`.
+Root runs everything in the install root at every start: the installer, the
+compose file, and the scripts it bind-mounts into containers. So the
+installer refuses a tree with files owned by anyone but root or a member of
+the install root's group, and on every run gives the whole tree that group
+and removes world write. Unpacking as root, by hand or through the deploy
+script, gives a root-owned tree.
 
-### 3. Operate
+To let a group of people update by hand without root for the unpack, make
+the install root group-owned, group-writable and setgid before the first
+install:
+
+```sh
+sudo groupadd --system aim-hi
+sudo usermod -aG aim-hi alice          # each updater
+sudo install -d -m 2775 -o root -g aim-hi /opt/aim-hi
+```
+
+The installer then makes every directory group-writable and setgid as well,
+so a member can unpack an update without root and install it with sudo:
+
+```sh
+(umask 002 && tar xzf aim-hi-<sha>.tar.gz -C /opt/aim-hi)
+cd /opt/aim-hi
+sudo scripts/install.sh
+```
+
+Members of that group can change what root runs, so it must hold only people
+who have sudo anyway.
+
+### Operate
 
 ```sh
 systemctl status aim-hi           # state of the service
@@ -240,22 +307,6 @@ The service is a thin shell around compose: start runs `docker compose up -d
 --wait` and fails if any container does not become healthy, stop runs
 `docker compose down`. Data lives in the `postgres_data` and `uploads`
 volumes, which a stop or restart never touches.
-
-### 4. Update
-
-Make a new bundle, unpack it over the same directory, and run the installer
-again:
-
-```sh
-tar xzf aim-hi-<sha>.tar.gz -C /opt/aim-hi
-cd /opt/aim-hi
-sudo scripts/install.sh
-```
-
-Existing site values and secrets are kept and not asked for again. The
-images are rebuilt and the service restarted, which applies any new
-migrations. The same works from a git checkout: pull, update the submodules,
-and re-run the installer there.
 
 ### Migrating a stack started by hand
 
