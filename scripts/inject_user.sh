@@ -51,10 +51,10 @@ EMAIL="$2"
 prompt_password() {
   local first second
   printf 'Password for %s: ' "$USERNAME" >&2
-  read -rs first
+  IFS= read -rs first
   echo >&2
   printf 'Repeat password: ' >&2
-  read -rs second
+  IFS= read -rs second
   echo >&2
   if [ "$first" != "$second" ]; then
     echo "error: passwords do not match." >&2
@@ -108,20 +108,23 @@ if [ -z "$PASSWORD_HASH" ]; then
   exit 1
 fi
 
-# Inject the user. Values cross into the container as positional args to
-# `sh` ($1/$2/$3) and are handed to psql as variables, which :'...' then
-# emits as safely-quoted SQL string literals -- so quotes or '$' in any
-# input can't break out into SQL. APP_DB_USER / APP_DB_NAME expand from
-# the container's own environment. The SQL is fed to psql over stdin.
-echo "Injecting user '$USERNAME'..." >&2
-docker compose exec -T postgres sh -s "$USERNAME" "$EMAIL" "$PASSWORD_HASH" <<'OUTER'
+# The script the postgres container runs. It reads the three values as
+# lines from stdin and hands them to psql through the environment, so
+# none of them is in any argv, on the host or in the container, where
+# every local user could read it from /proc. psql's :'...' then emits them
+# as quoted SQL literals, so quotes or '$' in any input cannot break out
+# into SQL. APP_DB_USER and APP_DB_NAME come from the container's own
+# environment.
+INJECT_SCRIPT="$(cat <<'EOF'
 set -e
-psql -v ON_ERROR_STOP=1 \
-     --username "$APP_DB_USER" \
-     --dbname "$APP_DB_NAME" \
-     --set=username="$1" \
-     --set=email="$2" \
-     --set=phash="$3" <<'SQL'
+IFS= read -r INJECT_USERNAME
+IFS= read -r INJECT_EMAIL
+IFS= read -r INJECT_PHASH
+export INJECT_USERNAME INJECT_EMAIL INJECT_PHASH
+psql -v ON_ERROR_STOP=1 --username "$APP_DB_USER" --dbname "$APP_DB_NAME" <<'SQL'
+\getenv username INJECT_USERNAME
+\getenv email INJECT_EMAIL
+\getenv phash INJECT_PHASH
 INSERT INTO users (username, email, email_verified, password_hash)
 VALUES (:'username', :'email', true, :'phash')
 ON CONFLICT (lower(username)) DO UPDATE
@@ -133,6 +136,12 @@ SELECT id, username, email, email_verified, created_at
 FROM users
 WHERE lower(username) = lower(:'username');
 SQL
-OUTER
+EOF
+)"
+
+# Inject the user. Only the static script above is on the command line.
+echo "Injecting user '$USERNAME'..." >&2
+printf '%s\n%s\n%s\n' "$USERNAME" "$EMAIL" "$PASSWORD_HASH" \
+  | docker compose exec -T postgres sh -c "$INJECT_SCRIPT"
 
 echo "Done." >&2
