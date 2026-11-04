@@ -32,6 +32,13 @@ set -euo pipefail
 # re-rendered, images are rebuilt, and the service is restarted. That is
 # also how an update from a newer bundle is applied.
 #
+# Root runs everything in this tree, so every file in it must belong to root
+# or to a member of the install root's group. The tree is given that group
+# and no world write on every run. A group-writable install root, e.g.
+# 'install -d -m 2775 -o root -g aim-hi /opt/aim-hi', makes every directory
+# group-writable with setgid, so the group can unpack an update without root.
+# Running this script still needs root, so that group must hold only sudoers.
+#
 # A stack started by hand from another directory is a different compose
 # project with its own volumes. When one is found, the script offers to stop
 # it and copy its database and uploads into this install, and reuses its
@@ -127,8 +134,42 @@ preflight() {
   [ -f "$ROOT_DIR/packages/aim_hi_fe/package.json" ] || die "the frontend submodule is missing"
   [ -d "$ROOT_DIR/packages/static/knowledge" ] || die "the static submodule is missing"
   [ -f "$UNIT_TEMPLATE" ] || die "no unit template at $UNIT_TEMPLATE"
+  adopt_tree
   find_old_stack
   check_port
+}
+
+# ---------------------------------------------------------------------------
+# The install tree
+# ---------------------------------------------------------------------------
+
+# Whether a user is in a group, by name.
+in_group() {
+  id -nG "$1" 2>/dev/null | tr ' ' '\n' | grep -qx "$2"
+}
+
+# Whether a path has its group write bit set.
+is_group_writable() {
+  [ -n "$(find "$1" -maxdepth 0 -perm -g=w)" ]
+}
+
+# Root runs everything in this tree, so its files may belong only to root or
+# to members of the install root's group. The tree is then made consistent:
+# that group throughout, no world write, and when the install root is
+# group-writable, every directory group-writable with setgid as well.
+adopt_tree() {
+  local group owner
+  group="$(stat -c %G "$ROOT_DIR")"
+  for owner in $(find "$ROOT_DIR" -printf '%u\n' | sort -u); do
+    [ "$owner" = root ] && continue
+    in_group "$owner" "$group" && continue
+    die "$ROOT_DIR has files owned by '$owner', who is neither root nor in group '$group'; fix with: chown -R root:$group '$ROOT_DIR'"
+  done
+  chgrp -R "$group" "$ROOT_DIR"
+  chmod -R o-w "$ROOT_DIR"
+  if is_group_writable "$ROOT_DIR"; then
+    find "$ROOT_DIR" -type d -exec chmod g+ws {} +
+  fi
 }
 
 # ---------------------------------------------------------------------------
