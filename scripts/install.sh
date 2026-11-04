@@ -55,15 +55,13 @@ ENV_FILE="$ROOT_DIR/.env"
 UNIT_TEMPLATE="$ROOT_DIR/config/systemd/$SERVICE.service"
 SECRETS_DIR="${AIM_HI_SECRETS_DIR:-/etc/aim-hi/secrets}"
 UNIT_DIR="${AIM_HI_UNIT_DIR:-/etc/systemd/system}"
-# The node image the Dockerfile builds with, reused to render .env when the
-# host has no Node of its own.
-NODE_IMAGE="node:24-bookworm-slim"
+DOCKERFILE="$ROOT_DIR/Dockerfile"
 
 log() { echo "==> $*" >&2; }
 die() { echo "error: $*" >&2; exit 1; }
 
 # Whether answers can be asked for interactively.
-interactive() { [ -t 0 ]; }
+is_interactive() { [ -t 0 ]; }
 
 # Put the value of AIM_HI_<name> into <name>, asking on a terminal when it
 # is unset. A blank answer takes the default. With no terminal and no
@@ -72,7 +70,7 @@ ask() {
   local name="$1" prompt="$2" default="${3-}"
   local env_name="AIM_HI_$name" value
   value="${!env_name-}"
-  if [ -z "$value" ] && interactive; then
+  if [ -z "$value" ] && is_interactive; then
     if [ -n "$default" ]; then
       printf '%s [%s]: ' "$prompt" "$default" >&2
     else
@@ -90,7 +88,7 @@ ask_secret() {
   local name="$1" prompt="$2"
   local env_name="AIM_HI_$name" first second
   first="${!env_name-}"
-  if [ -z "$first" ] && interactive; then
+  if [ -z "$first" ] && is_interactive; then
     printf '%s: ' "$prompt" >&2
     read -rs first
     echo >&2
@@ -339,15 +337,26 @@ host_node_ok() {
   [ "$major" -ge 22 ]
 }
 
+# The node image the Dockerfile builds with, read from its first FROM so the
+# two cannot drift. Pulling it here also warms the build that follows.
+node_image() {
+  local image
+  image="$(sed -n 's/^FROM[[:space:]]\+\(node:[^[:space:]]*\).*/\1/p' "$DOCKERFILE" | head -1)"
+  [ -n "$image" ] || die "no 'FROM node:...' found in $DOCKERFILE"
+  echo "$image"
+}
+
 # Render the production profile plus override into .env, with the host's
-# node or, failing that, the same node image the Dockerfile uses.
+# node or, failing that, the node image the Dockerfile builds with.
 render_env() {
   if host_node_ok; then
     node "$SCRIPT_DIR/gen_env.mjs" "$PROFILE" --force
     return
   fi
-  log "no Node >= 22 on the host; rendering .env with $NODE_IMAGE"
-  docker run --rm -v "$ROOT_DIR:/app" -w /app "$NODE_IMAGE" \
+  local image
+  image="$(node_image)"
+  log "no Node >= 22 on the host; rendering .env with $image"
+  docker run --rm -v "$ROOT_DIR:/app" -w /app "$image" \
     node scripts/gen_env.mjs "$PROFILE" --force
 }
 
@@ -398,7 +407,7 @@ install_service() {
 collect_admin() {
   ADMIN_USER="${AIM_HI_ADMIN_USER-}"
   if [ -z "$ADMIN_USER" ]; then
-    if ! interactive; then return; fi
+    if ! is_interactive; then return; fi
     if ! confirm MAKE_ADMIN "Create a login now? (y/n)" "y"; then return; fi
     ask ADMIN_USER "Username"
   fi
