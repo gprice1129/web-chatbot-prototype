@@ -8,6 +8,11 @@ set -euo pipefail
 # there that this bundle no longer has, and hands over to the unpacked
 # tree's scripts/install.sh.
 #
+# Root runs what is in the install root, so before anything is touched the
+# root and every directory above it must be root's, writable by nobody else
+# and no symlink, and so must everything already in the tree. One deploy
+# runs at a time per install root.
+#
 # Only entries of the previous bundle's file list, kept in BUNDLE.files at
 # the install root, are ever removed. Files that never came from a bundle,
 # such as .env and config/docker/override.json, are left alone.
@@ -39,28 +44,53 @@ preflight() {
   esac
 }
 
-# A missing install root is created as root's. An existing one keeps its
-# owner, group and mode, which install.sh then applies to the whole tree.
+# Whether a path is owned by root and writable by nobody else.
+is_roots_alone() {
+  [ "$(stat -c %u -- "$1")" -eq 0 ] && [ -z "$(find "$1" -maxdepth 0 -perm /022)" ]
+}
+
+# The install root, or the nearest existing directory above one that is
+# still to be created, and every directory up to / must be root's alone
+# and no symlink, or another account could swap the tree root works in.
+check_path() {
+  local dir="$INSTALL_ROOT"
+  while [ ! -e "$dir" ]; do dir="$(dirname -- "$dir")"; done
+  [ "$(realpath -e -- "$dir")" = "$dir" ] || die "$dir has a symlink in its path; the install root may not"
+  while :; do
+    is_roots_alone "$dir" || die "$dir must be owned by root and writable by nobody else"
+    [ "$dir" != / ] || break
+    dir="$(dirname -- "$dir")"
+  done
+}
+
+# A missing install root is created as root's.
 ensure_install_root() {
   [ -d "$INSTALL_ROOT" ] || install -d -m 755 -o root -g root "$INSTALL_ROOT"
 }
 
-# A bundle never carries a symlink, so one in the tree is foreign, and the
-# prune and the extraction below would write through it.
-refuse_symlinks() {
-  local link
-  link="$(find "$INSTALL_ROOT" -type l -print -quit)"
-  [ -z "$link" ] || die "$link is a symlink; the install tree may not contain any"
+# One deploy at a time per install root. The lock is held on the directory
+# itself and passes to install.sh with the exec below.
+lock_install_root() {
+  exec 9<"$INSTALL_ROOT"
+  flock -n 9 || die "another deploy is running in $INSTALL_ROOT"
+}
+
+# Everything already in the tree must be root's, writable by nobody else and
+# no symlink: a bundle never carries one, and the prune and the extraction
+# below would write through it.
+check_tree() {
+  local bad
+  bad="$(find "$INSTALL_ROOT" \( -type l -o ! -user root -o -perm /022 \) -print -quit)"
+  [ -z "$bad" ] || die "$bad: the install tree must be root's, writable by nobody else, and hold no symlink"
 }
 
 # Remove what the previous deploy had and this bundle lacks, unpack the
 # bundle, and keep its file list for the next deploy.
 unpack() {
   local new old entry
-  refuse_symlinks
   new="$(mktemp)"
   old="$INSTALL_ROOT/$MANIFEST_NAME"
-  tar -tzf "$BUNDLE" | LC_ALL=C sort > "$new"
+  tar --quoting-style=literal -tzf "$BUNDLE" | LC_ALL=C sort > "$new"
   grep -qx BUNDLE "$new" || die "$BUNDLE was not made by scripts/bundle.sh"
   if [ -f "$old" ]; then
     LC_ALL=C sort "$old" | LC_ALL=C comm -13 "$new" - | while IFS= read -r entry; do
@@ -97,7 +127,10 @@ run_installer() {
 
 main() {
   preflight
+  check_path
   ensure_install_root
+  lock_install_root
+  check_tree
   log "unpacking into $INSTALL_ROOT"
   unpack
   run_installer
