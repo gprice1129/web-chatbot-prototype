@@ -3,6 +3,7 @@ export {
   SectionStatus,
   DocumentWriteError,
   BODY_SECTION,
+  parse_document_template,
   write_section,
 }
 export type {
@@ -13,7 +14,8 @@ export type {
   DocumentWrite,
 }
 
-import type { Result } from "#common/result.js";
+import { map_error, type Result } from "#common/result.js";
+import { is_boolean, is_object, is_string } from "#common/type-checker.js";
 
 /*
  * Main Concept
@@ -76,6 +78,11 @@ interface Document {
 
 /*
  * Idea: One section a template gives its documents.
+ *
+ * TODO:[documents] template files also carry `model_guidance`, which tells
+ * the assistant what belongs in a section, and `user_placeholder`, which a
+ * person sees until it is written. Neither is part of a document's shape.
+ * Where they should live is still to be discussed.
  */
 interface TemplateSection {
   id: string;
@@ -90,6 +97,81 @@ interface DocumentTemplate {
   id: string;
   title: string;
   sections: TemplateSection[];
+}
+
+const _TEMPLATE_ID = /^[a-z0-9-]+$/;
+const _SECTION_ID = /^[a-z][a-z0-9_]*$/;
+
+/*
+ * Idea: A template as authored, or the first thing wrong with it.
+ *
+ * (unknown) => Result<DocumentTemplate>
+ * Pure
+ * Public
+ */
+function parse_document_template(value: unknown): Result<DocumentTemplate> {
+  if (!is_object(value)) return { ok: false, error: "template must be an object" };
+  const { id, title, sections } = value;
+  if (!is_string(id) || !_TEMPLATE_ID.test(id)) {
+    return { ok: false, error: "template id must be lowercase letters, digits and dashes" };
+  }
+  if (!_has_text(title)) {
+    return { ok: false, error: `template ${id}: title must be a non-empty string` };
+  }
+  if (!Array.isArray(sections) || 0 === sections.length) {
+    return { ok: false, error: `template ${id}: sections must be a non-empty array` };
+  }
+  const parsed: TemplateSection[] = [];
+  for (const [index, raw] of sections.entries()) {
+    const section = map_error(
+      _parse_template_section(raw), (error) => `template ${id}: section ${index}: ${error}`);
+    if (!section.ok) return section;
+    if (parsed.some((seen) => seen.id === section.value.id)) {
+      return { ok: false, error: `template ${id}: duplicate section id '${section.value.id}'` };
+    }
+    parsed.push(section.value);
+  }
+  return { ok: true, value: { id, title, sections: parsed } };
+}
+
+/*
+ * Idea: One section as authored, or the first thing wrong with it.
+ *
+ * (unknown) => Result<TemplateSection>
+ * An id that every object already answers to is refused, because sections
+ * are looked up by id. Fields the shared template does not define are left
+ * behind.
+ * Pure
+ * Private
+ */
+function _parse_template_section(raw: unknown): Result<TemplateSection> {
+  if (!is_object(raw)) return { ok: false, error: "must be an object" };
+  const { id, title, required } = raw;
+  if (!is_string(id) || !_SECTION_ID.test(id)) {
+    return {
+      ok: false,
+      error: "id must be a lowercase letter, then lowercase letters, digits and underscores",
+    };
+  }
+  if (id in Object.prototype) return { ok: false, error: `id '${id}' is reserved` };
+  if (!_has_text(title)) {
+    return { ok: false, error: `${id}: title must be a non-empty string` };
+  }
+  if (!is_boolean(required)) {
+    return { ok: false, error: `${id}: required must be a boolean` };
+  }
+  return { ok: true, value: { id, title, required } };
+}
+
+/*
+ * Idea: Whether a value is text that says something.
+ *
+ * (unknown) => boolean
+ * Pure
+ * Private
+ */
+function _has_text(value: unknown): value is string {
+  return is_string(value) && "" !== value.trim();
 }
 
 /*

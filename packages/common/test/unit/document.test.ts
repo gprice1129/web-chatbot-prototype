@@ -6,6 +6,7 @@ import {
   SectionStatus,
   DocumentWriteError,
   BODY_SECTION,
+  parse_document_template,
   write_section,
   type Document,
   type DocumentTemplate,
@@ -20,9 +21,67 @@ const TEMPLATE: DocumentTemplate = {
   title: "IRB Protocol",
   sections: [
     { id: "background", title: "Background", required: true },
-    { id: "aims", title: "Specific aims", required: true },
+    { id: "aims", title: "Specific aims", required: false },
   ],
 };
+
+// TEMPLATE as a content file would hold it, with `patch` laid over it.
+function authored(patch: object = {}): unknown {
+  return { ...JSON.parse(JSON.stringify(TEMPLATE)), ...patch };
+}
+
+// TEMPLATE's first section as authored, with `patch` laid over it, alone.
+function authored_section(patch: object): unknown {
+  return authored({ sections: [{ ...TEMPLATE.sections[0], ...patch }] });
+}
+
+describe("parse_document_template", () => {
+  it("reads a template as authored, sections in order", () => {
+    assert.deepEqual(parse_document_template(authored()), { ok: true, value: TEMPLATE });
+  });
+
+  it("leaves behind what the shared template does not define", () => {
+    const with_extras = authored_section({
+      model_guidance: "Why the question matters.",
+      user_placeholder: "Why this study matters.",
+    });
+    assert.deepEqual(parse_document_template(with_extras), {
+      ok: true,
+      value: { ...TEMPLATE, sections: [TEMPLATE.sections[0]] },
+    });
+  });
+
+  it("names the first thing wrong with the template", () => {
+    const refused = (value: unknown, error: string) => {
+      assert.deepEqual(parse_document_template(value), { ok: false, error });
+    };
+    refused(null, "template must be an object");
+    refused(authored({ id: "IRB Protocol" }),
+      "template id must be lowercase letters, digits and dashes");
+    refused(authored({ title: " " }), "template irb-protocol: title must be a non-empty string");
+    refused(authored({ sections: [] }),
+      "template irb-protocol: sections must be a non-empty array");
+    refused(authored({ sections: [TEMPLATE.sections[0], TEMPLATE.sections[0]] }),
+      "template irb-protocol: duplicate section id 'background'");
+  });
+
+  it("names the section and what is wrong with it", () => {
+    const refused = (patch: object, error: string) => {
+      assert.deepEqual(
+        parse_document_template(authored_section(patch)),
+        { ok: false, error: `template irb-protocol: section 0: ${error}` });
+    };
+    const bad_id = "id must be a lowercase letter, then lowercase letters, digits and underscores";
+    refused({ id: "has-dash" }, bad_id);
+    refused({ id: "__proto__" }, bad_id);
+    refused({ id: "constructor" }, "id 'constructor' is reserved");
+    refused({ title: "" }, "background: title must be a non-empty string");
+    refused({ required: "yes" }, "background: required must be a boolean");
+    assert.deepEqual(
+      parse_document_template(authored({ sections: ["aims"] })),
+      { ok: false, error: "template irb-protocol: section 0: must be an object" });
+  });
+});
 
 // A document being built from TEMPLATE: both parties may write it.
 function built(): Document {
