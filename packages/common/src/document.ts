@@ -4,6 +4,8 @@ export {
   DocumentWriteError,
   BODY_SECTION,
   parse_document_template,
+  empty_document,
+  plain_document,
   write_section,
 }
 export type {
@@ -172,6 +174,37 @@ function _parse_template_section(raw: unknown): Result<TemplateSection> {
  */
 function _has_text(value: unknown): value is string {
   return is_string(value) && "" !== value.trim();
+}
+
+/*
+ * Idea: A document that follows a template, before anyone has written in it.
+ *
+ * (DocumentTemplate, DocumentAuthor[]) => Document
+ * Pure
+ * Public
+ */
+function empty_document(template: DocumentTemplate, writable_by: DocumentAuthor[]): Document {
+  return { template_id: template.id, writable_by, revision: 0, sections: {} };
+}
+
+/*
+ * Idea: Text that already exists, held as a document nobody writes again.
+ *
+ * (string, DocumentAuthor, string) => Document
+ * Blank text gives a document with no body.
+ * Pure
+ * Public
+ */
+function plain_document(text: string, author: DocumentAuthor, now: string): Document {
+  const document: Document = { template_id: null, writable_by: [], revision: 0, sections: {} };
+  if (!_has_text(text)) return document;
+  const body: DocumentSection = {
+    text,
+    status: SectionStatus.COMPLETE,
+    written_by: author,
+    written_at: now,
+  };
+  return { ...document, sections: { [BODY_SECTION]: body } };
 }
 
 /*

@@ -7,6 +7,8 @@ import {
   DocumentWriteError,
   BODY_SECTION,
   parse_document_template,
+  empty_document,
+  plain_document,
   write_section,
   type Document,
   type DocumentTemplate,
@@ -85,30 +87,46 @@ describe("parse_document_template", () => {
 
 // A document being built from TEMPLATE: both parties may write it.
 function built(): Document {
-  return {
-    template_id: TEMPLATE.id,
-    writable_by: [DocumentAuthor.USER, DocumentAuthor.ASSISTANT],
-    revision: 0,
-    sections: {},
-  };
+  return empty_document(TEMPLATE, [DocumentAuthor.USER, DocumentAuthor.ASSISTANT]);
 }
 
 // An uploaded file: its text is the body, and nobody writes it again.
 function uploaded(): Document {
-  return {
-    template_id: null,
-    writable_by: [],
-    revision: 0,
-    sections: {
-      [BODY_SECTION]: {
-        text: "The proposal as uploaded.",
-        status: SectionStatus.COMPLETE,
-        written_by: DocumentAuthor.USER,
-        written_at: NOW,
-      },
-    },
-  };
+  return plain_document("The proposal as uploaded.", DocumentAuthor.USER, NOW);
 }
+
+describe("empty_document", () => {
+  it("follows its template, with nothing written and no writes counted", () => {
+    assert.deepEqual(empty_document(TEMPLATE, [DocumentAuthor.ASSISTANT]), {
+      template_id: "irb-protocol",
+      writable_by: [DocumentAuthor.ASSISTANT],
+      revision: 0,
+      sections: {},
+    });
+  });
+});
+
+describe("plain_document", () => {
+  it("holds the text as a finished body by its author, closed to everyone", () => {
+    assert.deepEqual(uploaded(), {
+      template_id: null,
+      writable_by: [],
+      revision: 0,
+      sections: {
+        [BODY_SECTION]: {
+          text: "The proposal as uploaded.",
+          status: SectionStatus.COMPLETE,
+          written_by: DocumentAuthor.USER,
+          written_at: NOW,
+        },
+      },
+    });
+  });
+
+  it("has no body when the text is blank", () => {
+    assert.deepEqual(plain_document(" \n", DocumentAuthor.USER, NOW).sections, {});
+  });
+});
 
 function write_of(patch: Partial<DocumentWrite> = {}): DocumentWrite {
   return {
