@@ -31,6 +31,11 @@ import { is_boolean, is_object, is_string } from "#common/type-checker.js";
  */
 
 /*
+ * TODO:[documents] nothing here reads a document back from where it is kept.
+ * That waits on deciding the form a document is kept in.
+ */
+
+/*
  * Idea: A party that can write a document.
  */
 enum DocumentAuthor {
