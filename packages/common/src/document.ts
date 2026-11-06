@@ -8,6 +8,8 @@ export {
 export type {
   Document,
   DocumentSection,
+  DocumentTemplate,
+  TemplateSection,
   DocumentWrite,
 }
 
@@ -73,6 +75,24 @@ interface Document {
 }
 
 /*
+ * Idea: One section a template gives its documents.
+ */
+interface TemplateSection {
+  id: string;
+  title: string;
+  required: boolean;
+}
+
+/*
+ * Idea: The sections one kind of document has, in order.
+ */
+interface DocumentTemplate {
+  id: string;
+  title: string;
+  sections: TemplateSection[];
+}
+
+/*
  * Idea: One author's change to one section.
  *
  * `revision` is the document's revision as the author read it. Blank `text`
@@ -98,20 +118,24 @@ enum DocumentWriteError {
 /*
  * Idea: The document after a write, or why the write was refused.
  *
- * (Document, DocumentWrite, string) => Result<Document, DocumentWriteError>
- * Only a document with no template has its section checked here. Every
- * accepted write is counted, an erasure included.
+ * (DocumentTemplate | null, Document, DocumentWrite, string)
+ *   => Result<Document, DocumentWriteError>
+ * `template` is the one the document follows, null when it follows none.
+ * Handing over any other throws: that mistake is the caller's, not the
+ * author's. Every accepted write is counted, an erasure included.
  * Pure
  * Public
  */
 function write_section(
+    template: DocumentTemplate | null,
     document: Document,
     write: DocumentWrite,
     now: string): Result<Document, DocumentWriteError> {
+  const section_ids = _section_ids(template, document);
   if (!document.writable_by.includes(write.author)) {
     return { ok: false, error: DocumentWriteError.NOT_PERMITTED };
   }
-  if (null === document.template_id && BODY_SECTION !== write.section_id) {
+  if (!section_ids.includes(write.section_id)) {
     return { ok: false, error: DocumentWriteError.NO_SUCH_SECTION };
   }
   if (write.revision !== document.revision) {
@@ -123,6 +147,24 @@ function write_section(
     sections: _sections_after(document.sections, write, now),
   };
   return { ok: true, value: written };
+}
+
+/*
+ * Idea: The sections a document may have: its template's, or only the body.
+ *
+ * (DocumentTemplate | null, Document) => string[]
+ * Throws when `template` is not the one the document follows.
+ * Pure
+ * Private
+ */
+function _section_ids(template: DocumentTemplate | null, document: Document): string[] {
+  const given = template?.id ?? null;
+  if (given !== document.template_id) {
+    throw new Error(
+      `document follows template '${document.template_id}', but was given '${given}'`);
+  }
+  if (null === template) return [BODY_SECTION];
+  return template.sections.map((section) => section.id);
 }
 
 /*

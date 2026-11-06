@@ -8,16 +8,26 @@ import {
   BODY_SECTION,
   write_section,
   type Document,
+  type DocumentTemplate,
   type DocumentWrite,
 } from "#common/document.js";
 
 const NOW = "2026-11-06T00:00:00.000Z";
 const LATER = "2026-11-06T00:05:00.000Z";
 
-// A document being built from a template: both parties may write it.
+const TEMPLATE: DocumentTemplate = {
+  id: "irb-protocol",
+  title: "IRB Protocol",
+  sections: [
+    { id: "background", title: "Background", required: true },
+    { id: "aims", title: "Specific aims", required: true },
+  ],
+};
+
+// A document being built from TEMPLATE: both parties may write it.
 function built(): Document {
   return {
-    template_id: "irb-protocol",
+    template_id: TEMPLATE.id,
     writable_by: [DocumentAuthor.USER, DocumentAuthor.ASSISTANT],
     revision: 0,
     sections: {},
@@ -54,7 +64,7 @@ function write_of(patch: Partial<DocumentWrite> = {}): DocumentWrite {
 
 describe("write_section", () => {
   it("writes a section as its author gave it and counts the write", () => {
-    const written = write_section(built(), write_of(), NOW);
+    const written = write_section(TEMPLATE, built(), write_of(), NOW);
     assert.deepEqual(written, {
       ok: true,
       value: {
@@ -75,16 +85,16 @@ describe("write_section", () => {
 
   it("replaces one section and leaves the others and the original alone", () => {
     const before = built();
-    const first = write_section(before, write_of(), NOW);
+    const first = write_section(TEMPLATE, before, write_of(), NOW);
     assert.ok(first.ok);
-    const second = write_section(first.value, write_of({
+    const second = write_section(TEMPLATE, first.value, write_of({
       section_id: "background",
       text: "Why it matters.",
       author: DocumentAuthor.USER,
       revision: 1,
     }), LATER);
     assert.ok(second.ok);
-    const third = write_section(second.value, write_of({
+    const third = write_section(TEMPLATE, second.value, write_of({
       text: "1. Measure readmission within 30 days.",
       status: SectionStatus.NEEDS_REVIEW,
       author: DocumentAuthor.USER,
@@ -104,9 +114,10 @@ describe("write_section", () => {
   });
 
   it("erases a section written blank, and counts that too", () => {
-    const first = write_section(built(), write_of(), NOW);
+    const first = write_section(TEMPLATE, built(), write_of(), NOW);
     assert.ok(first.ok);
-    const erased = write_section(first.value, write_of({ text: "  \n", revision: 1 }), LATER);
+    const erased = write_section(
+      TEMPLATE, first.value, write_of({ text: "  \n", revision: 1 }), LATER);
     assert.ok(erased.ok);
     assert.deepEqual(erased.value.sections, {});
     assert.equal(erased.value.revision, 2);
@@ -114,34 +125,54 @@ describe("write_section", () => {
 
   it("refuses an author the document is not writable by", () => {
     const by_assistant = write_section(
-      uploaded(), write_of({ section_id: BODY_SECTION }), NOW);
+      null, uploaded(), write_of({ section_id: BODY_SECTION }), NOW);
     assert.deepEqual(by_assistant, { ok: false, error: DocumentWriteError.NOT_PERMITTED });
     const by_user = write_section(
-      uploaded(), write_of({ section_id: BODY_SECTION, author: DocumentAuthor.USER }), NOW);
+      null, uploaded(), write_of({ section_id: BODY_SECTION, author: DocumentAuthor.USER }), NOW);
     assert.deepEqual(by_user, { ok: false, error: DocumentWriteError.NOT_PERMITTED });
   });
 
   it("refuses a write made against a revision that has moved on, whoever makes it", () => {
     // Both read revision 0. The user's write lands first.
     const by_user = write_section(
-      built(), write_of({ author: DocumentAuthor.USER, text: "Mine." }), NOW);
+      TEMPLATE, built(), write_of({ author: DocumentAuthor.USER, text: "Mine." }), NOW);
     assert.ok(by_user.ok);
-    const by_assistant = write_section(by_user.value, write_of(), LATER);
+    const by_assistant = write_section(TEMPLATE, by_user.value, write_of(), LATER);
     assert.deepEqual(by_assistant, { ok: false, error: DocumentWriteError.STALE });
 
-    const ahead = write_section(built(), write_of({ revision: 4 }), NOW);
+    const ahead = write_section(TEMPLATE, built(), write_of({ revision: 4 }), NOW);
     assert.deepEqual(ahead, { ok: false, error: DocumentWriteError.STALE });
+  });
+
+  it("admits only the sections its template names", () => {
+    const unknown = write_section(TEMPLATE, built(), write_of({ section_id: "budget" }), NOW);
+    assert.deepEqual(unknown, { ok: false, error: DocumentWriteError.NO_SUCH_SECTION });
+    const body = write_section(TEMPLATE, built(), write_of({ section_id: BODY_SECTION }), NOW);
+    assert.deepEqual(body, { ok: false, error: DocumentWriteError.NO_SUCH_SECTION });
   });
 
   it("admits only the body when the document follows no template", () => {
     const plain: Document = { ...uploaded(), writable_by: [DocumentAuthor.USER] };
-    const elsewhere = write_section(plain, write_of({ author: DocumentAuthor.USER }), NOW);
+    const elsewhere = write_section(null, plain, write_of({ author: DocumentAuthor.USER }), NOW);
     assert.deepEqual(elsewhere, { ok: false, error: DocumentWriteError.NO_SUCH_SECTION });
 
-    const body = write_section(plain, write_of({
+    const body = write_section(null, plain, write_of({
       section_id: BODY_SECTION, text: "Replaced.", author: DocumentAuthor.USER,
     }), LATER);
     assert.ok(body.ok);
     assert.equal(body.value.sections[BODY_SECTION].text, "Replaced.");
+  });
+
+  it("throws when handed a template the document does not follow", () => {
+    const other: DocumentTemplate = { ...TEMPLATE, id: "budget-justification" };
+    assert.throws(
+      () => write_section(other, built(), write_of(), NOW),
+      /follows template 'irb-protocol', but was given 'budget-justification'/);
+    assert.throws(
+      () => write_section(null, built(), write_of(), NOW),
+      /follows template 'irb-protocol', but was given 'null'/);
+    assert.throws(
+      () => write_section(TEMPLATE, uploaded(), write_of(), NOW),
+      /follows template 'null', but was given 'irb-protocol'/);
   });
 });
