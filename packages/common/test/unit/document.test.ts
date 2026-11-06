@@ -10,6 +10,7 @@ import {
   empty_document,
   readonly_document,
   write_section,
+  document_standing,
   type Document,
   type DocumentTemplate,
   type DocumentWrite,
@@ -24,6 +25,7 @@ const TEMPLATE: DocumentTemplate = {
   sections: [
     { id: "background", title: "Background", required: true },
     { id: "aims", title: "Specific aims", required: false },
+    { id: "design", title: "Study design", required: true },
   ],
 };
 
@@ -251,5 +253,63 @@ describe("write_section", () => {
     assert.throws(
       () => write_section(TEMPLATE, uploaded(), write_of(), NOW),
       /follows template 'null', but was given 'irb-protocol'/);
+  });
+});
+
+// `document` after each write in turn, every one made against what it left.
+function after_writes(document: Document, ...writes: Partial<DocumentWrite>[]): Document {
+  let current = document;
+  for (const patch of writes) {
+    const written = write_section(
+      TEMPLATE, current, write_of({ ...patch, revision: current.revision }), NOW);
+    assert.ok(written.ok);
+    current = written.value;
+  }
+  return current;
+}
+
+describe("document_standing", () => {
+  it("counts every required section outstanding before anything is written", () => {
+    assert.deepEqual(
+      document_standing(TEMPLATE, built()),
+      { outstanding: ["background", "design"], leftover: [] });
+  });
+
+  it("clears a required section only once it is complete", () => {
+    const drafted = after_writes(built(),
+      { section_id: "design", status: SectionStatus.NEEDS_REVIEW },
+      { section_id: "background", status: SectionStatus.COMPLETE });
+    assert.deepEqual(document_standing(TEMPLATE, drafted).outstanding, ["design"]);
+
+    const finished = after_writes(drafted,
+      { section_id: "design", status: SectionStatus.COMPLETE });
+    assert.deepEqual(document_standing(TEMPLATE, finished).outstanding, []);
+  });
+
+  it("asks nothing of a section that is not required", () => {
+    const optional = after_writes(built(), { section_id: "aims", status: SectionStatus.DRAFT });
+    assert.deepEqual(
+      document_standing(TEMPLATE, optional).outstanding, ["background", "design"]);
+  });
+
+  it("names the written sections its template no longer has", () => {
+    const written = after_writes(built(),
+      { section_id: "aims" }, { section_id: "design" });
+    const trimmed: DocumentTemplate = {
+      ...TEMPLATE, sections: [TEMPLATE.sections[0]],
+    };
+    assert.deepEqual(
+      document_standing(trimmed, written),
+      { outstanding: ["background"], leftover: ["aims", "design"] });
+  });
+
+  it("asks nothing of a document that follows no template", () => {
+    assert.deepEqual(document_standing(null, uploaded()), { outstanding: [], leftover: [] });
+  });
+
+  it("throws when handed a template the document does not follow", () => {
+    assert.throws(
+      () => document_standing(null, built()),
+      /follows template 'irb-protocol', but was given 'null'/);
   });
 });

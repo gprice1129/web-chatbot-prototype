@@ -7,6 +7,7 @@ export {
   empty_document,
   readonly_document,
   write_section,
+  document_standing,
 }
 export type {
   Document,
@@ -14,6 +15,7 @@ export type {
   DocumentTemplate,
   TemplateSection,
   DocumentWrite,
+  DocumentStanding,
 }
 
 import { map_error, type Result } from "#common/result.js";
@@ -267,6 +269,53 @@ function write_section(
     sections: _sections_after(document.sections, write, now),
   };
   return { ok: true, value: written };
+}
+
+/*
+ * Idea: How far a document is from what its template asks of it.
+ *
+ * `outstanding` are the required sections not yet complete, in template
+ * order. `leftover` are the written sections the template does not name.
+ */
+interface DocumentStanding {
+  outstanding: string[];
+  leftover: string[];
+}
+
+/*
+ * Idea: A document measured against the template it follows.
+ *
+ * (DocumentTemplate | null, Document) => DocumentStanding
+ * Throws when `template` is not the one the document follows.
+ * Pure
+ * Public
+ */
+function document_standing(
+    template: DocumentTemplate | null, document: Document): DocumentStanding {
+  const section_ids = _section_ids(template, document);
+  const outstanding = _required_ids(template).filter((id) => !_is_complete(document, id));
+  const leftover = Object.keys(document.sections).filter((id) => !section_ids.includes(id));
+  return { outstanding, leftover };
+}
+
+/*
+ * (DocumentTemplate | null) => string[]
+ * Pure
+ * Private
+ */
+function _required_ids(template: DocumentTemplate | null): string[] {
+  if (null === template) return [];
+  return template.sections.filter((section) => section.required).map((section) => section.id);
+}
+
+/*
+ * (Document, string) => boolean
+ * Pure
+ * Private
+ */
+function _is_complete(document: Document, section_id: string): boolean {
+  if (!Object.hasOwn(document.sections, section_id)) return false;
+  return SectionStatus.COMPLETE === document.sections[section_id].status;
 }
 
 /*
