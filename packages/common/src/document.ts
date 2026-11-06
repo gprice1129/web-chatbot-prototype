@@ -5,7 +5,7 @@ export {
   BODY_SECTION,
   parse_document_template,
   empty_document,
-  plain_document,
+  readonly_document,
   write_section,
 }
 export type {
@@ -195,7 +195,7 @@ function empty_document(template: DocumentTemplate, writable_by: DocumentAuthor[
  * Pure
  * Public
  */
-function plain_document(text: string, author: DocumentAuthor, now: string): Document {
+function readonly_document(text: string, author: DocumentAuthor, now: string): Document {
   const document: Document = { template_id: null, writable_by: [], revision: 0, sections: {} };
   if (!_has_text(text)) return document;
   const body: DocumentSection = {

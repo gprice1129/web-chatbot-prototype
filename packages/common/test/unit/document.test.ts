@@ -8,7 +8,7 @@ import {
   BODY_SECTION,
   parse_document_template,
   empty_document,
-  plain_document,
+  readonly_document,
   write_section,
   type Document,
   type DocumentTemplate,
@@ -92,7 +92,7 @@ function built(): Document {
 
 // An uploaded file: its text is the body, and nobody writes it again.
 function uploaded(): Document {
-  return plain_document("The proposal as uploaded.", DocumentAuthor.USER, NOW);
+  return readonly_document("The proposal as uploaded.", DocumentAuthor.USER, NOW);
 }
 
 describe("empty_document", () => {
@@ -106,7 +106,7 @@ describe("empty_document", () => {
   });
 });
 
-describe("plain_document", () => {
+describe("readonly_document", () => {
   it("holds the text as a finished body by its author, closed to everyone", () => {
     assert.deepEqual(uploaded(), {
       template_id: null,
@@ -124,7 +124,7 @@ describe("plain_document", () => {
   });
 
   it("has no body when the text is blank", () => {
-    assert.deepEqual(plain_document(" \n", DocumentAuthor.USER, NOW).sections, {});
+    assert.deepEqual(readonly_document(" \n", DocumentAuthor.USER, NOW).sections, {});
   });
 });
 
