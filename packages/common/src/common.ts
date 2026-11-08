@@ -80,4 +80,5 @@ export {
 export type {
   Document,
   DocumentTemplate,
+  TemplateSection,
 } from "#common/document.js";
