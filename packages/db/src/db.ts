@@ -11,6 +11,7 @@ export { ApplicationDbService } from "./applications.js";
 export { ChatDbService } from "./chats.js";
 export { ProjectDbService } from "./projects.js";
 export { MemoryDbService } from "./memory.js";
+export { DocumentDbService } from "./documents.js";
 
 import * as pg from "pg";
 import { make_pool } from "./pool.js";
@@ -23,6 +24,7 @@ import { ApplicationDbService } from "./applications.js";
 import { ChatDbService } from "./chats.js";
 import { ProjectDbService } from "./projects.js";
 import { MemoryDbService } from "./memory.js";
+import { DocumentDbService } from "./documents.js";
 
 // All services running on the same Executor
 interface DbServiceSet {
@@ -33,6 +35,7 @@ interface DbServiceSet {
   chat_db: ChatDbService;
   project_db: ProjectDbService;
   memory_db: MemoryDbService;
+  document_db: DocumentDbService;
 }
 
 // Runs a body of work in one transaction, passing it a service set bound to
@@ -53,6 +56,7 @@ function make_service_set(exec: Executor): DbServiceSet {
     chat_db: new ChatDbService(exec),
     project_db: new ProjectDbService(exec),
     memory_db: new MemoryDbService(exec),
+    document_db: new DocumentDbService(exec),
   };
 }
 

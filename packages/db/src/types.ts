@@ -6,12 +6,16 @@ export {
   ChatMessageRole,
   ChatMessageWithFileIds,
   ChatTranscriptTurn,
+  DocumentRecord,
+  DocumentVersion,
   File,
   FileStatus,
   Project,
   Session,
   User
 }
+
+import type { DocumentAuthor } from "common";
 
 enum FileStatus {
   UPLOADED = "uploaded",
@@ -118,4 +122,26 @@ interface File {
   metadata: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
+}
+
+// A document's row: identity, owner and head pointer. Its content is the
+// version whose revision equals `revision`; none before the first write.
+interface DocumentRecord {
+  id: string;
+  user_id: string;
+  template_id: string | null;
+  writable_by: DocumentAuthor[];
+  revision: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// One revision of a document: the file holding it, and the write that made it.
+interface DocumentVersion {
+  document_id: string;
+  revision: number;
+  file_id: string;
+  written_by: DocumentAuthor;
+  section_id: string;
+  created_at: Date;
 }
