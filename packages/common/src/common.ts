@@ -68,3 +68,16 @@ export {
 export type {
   MarkdownDocument,
 } from "#common/markdown.js";
+
+export {
+  DocumentAuthor,
+  SectionStatus,
+  DocumentWriteError,
+  empty_document,
+  write_section,
+} from "#common/document.js";
+
+export type {
+  Document,
+  DocumentTemplate,
+} from "#common/document.js";

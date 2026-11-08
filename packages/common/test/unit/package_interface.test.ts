@@ -9,7 +9,11 @@ describe("the common package interface", () => {
   it("offers exactly what the barrel exports", async () => {
     const surface = Object.keys(await import("common")).sort();
     assert.deepEqual(surface, [
+      "DocumentAuthor",
+      "DocumentWriteError",
+      "SectionStatus",
       "as_list",
+      "empty_document",
       "find_files",
       "find_markdown",
       "is_boolean",
@@ -31,6 +35,7 @@ describe("the common package interface", () => {
       "read_text",
       "separate_frontmatter",
       "unless_aborted",
+      "write_section",
     ]);
   });
 
