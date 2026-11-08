@@ -7,6 +7,7 @@ import {
   DocumentWriteError,
   BODY_SECTION,
   parse_document_template,
+  parse_template_guidance,
   empty_document,
   readonly_document,
   write_section,
@@ -96,6 +97,37 @@ function built(): Document {
 function uploaded(): Document {
   return readonly_document("The proposal as uploaded.", DocumentAuthor.USER, NOW);
 }
+
+describe("parse_template_guidance", () => {
+  const guided = (guidance: Record<string, string>) => authored({
+    sections: TEMPLATE.sections.map((section) => ({
+      ...section, model_guidance: guidance[section.id], user_placeholder: "Shown while empty.",
+    })),
+  });
+  const GUIDANCE = { background: "Why it matters.", aims: "Numbered aims.", design: "What is done." };
+
+  it("reads each template section's guidance from the file, and nothing else", () => {
+    assert.deepEqual(parse_template_guidance(TEMPLATE, guided(GUIDANCE)), { ok: true, value: GUIDANCE });
+  });
+
+  it("leaves behind guidance for a section the template does not name", () => {
+    const file = guided(GUIDANCE) as { sections: object[] };
+    file.sections.push({ id: "budget", model_guidance: "Costs." });
+    assert.deepEqual(parse_template_guidance(TEMPLATE, file), { ok: true, value: GUIDANCE });
+  });
+
+  it("refuses a template section the file leaves unguided", () => {
+    const refused = (file: unknown, error: string) => {
+      assert.deepEqual(
+        parse_template_guidance(TEMPLATE, file),
+        { ok: false, error: `template irb-protocol: ${error}` });
+    };
+    refused(guided({ ...GUIDANCE, aims: " " }),
+      "section aims: model_guidance must be a non-empty string");
+    refused(authored(), "section background: model_guidance must be a non-empty string");
+    refused(authored({ sections: "none" }), "sections must be an array");
+  });
+});
 
 describe("empty_document", () => {
   it("follows its template, with nothing written and no writes counted", () => {

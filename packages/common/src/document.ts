@@ -4,6 +4,7 @@ export {
   DocumentWriteError,
   BODY_SECTION,
   parse_document_template,
+  parse_template_guidance,
   empty_document,
   readonly_document,
   write_section,
@@ -14,6 +15,7 @@ export type {
   DocumentSection,
   DocumentTemplate,
   TemplateSection,
+  TemplateGuidance,
   DocumentWrite,
   DocumentStanding,
 }
@@ -88,10 +90,9 @@ interface Document {
 /*
  * Idea: One section a template gives its documents.
  *
- * TODO:[documents] template files also carry `model_guidance`, which tells
- * the assistant what belongs in a section, and `user_placeholder`, which a
- * person sees until it is written. Neither is part of a document's shape.
- * Where they should live is still to be discussed.
+ * TODO:[documents] template files also carry `user_placeholder`, which a
+ * person sees until a section is written. It is not part of a document's
+ * shape. Nothing reads it yet; it belongs here beside the guidance reader.
  */
 interface TemplateSection {
   id: string;
@@ -170,6 +171,45 @@ function _parse_template_section(raw: unknown): Result<TemplateSection> {
     return { ok: false, error: `${id}: required must be a boolean` };
   }
   return { ok: true, value: { id, title, required } };
+}
+
+/*
+ * Idea: What belongs in each section, in words written for the model, keyed
+ * by section.
+ */
+type TemplateGuidance = Record<string, string>;
+
+/*
+ * Idea: The guidance a template's file gives, or the first thing wrong with
+ * it.
+ *
+ * (DocumentTemplate, unknown) => Result<TemplateGuidance>
+ * `value` is the file the template was read from. Every section the template
+ * names must be guided; entries for other sections are left behind.
+ * Pure
+ * Public
+ */
+function parse_template_guidance(
+    template: DocumentTemplate, value: unknown): Result<TemplateGuidance> {
+  if (!is_object(value) || !Array.isArray(value["sections"])) {
+    return { ok: false, error: `template ${template.id}: sections must be an array` };
+  }
+  const given = new Map<unknown, unknown>();
+  for (const raw of value["sections"]) {
+    if (is_object(raw)) given.set(raw["id"], raw["model_guidance"]);
+  }
+  const guidance: TemplateGuidance = {};
+  for (const section of template.sections) {
+    const text = given.get(section.id);
+    if (!_has_text(text)) {
+      return {
+        ok: false,
+        error: `template ${template.id}: section ${section.id}: model_guidance must be a non-empty string`,
+      };
+    }
+    guidance[section.id] = text;
+  }
+  return { ok: true, value: guidance };
 }
 
 /*

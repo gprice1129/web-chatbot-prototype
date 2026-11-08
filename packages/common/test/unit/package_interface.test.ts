@@ -30,6 +30,7 @@ describe("the common package interface", () => {
       "parse_frontmatter",
       "parse_iso_date",
       "parse_positive_int",
+      "parse_template_guidance",
       "read_markdown",
       "read_secret",
       "read_text",
