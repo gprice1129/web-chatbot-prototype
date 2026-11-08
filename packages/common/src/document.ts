@@ -7,6 +7,7 @@ export {
   parse_template_guidance,
   empty_document,
   readonly_document,
+  parse_document,
   write_section,
   document_standing,
 }
@@ -21,7 +22,7 @@ export type {
 }
 
 import { map_error, type Result } from "#common/result.js";
-import { is_boolean, is_object, is_string } from "#common/type-checker.js";
+import { is_boolean, is_number, is_object, is_string } from "#common/type-checker.js";
 
 /*
  * Main Concept
@@ -32,11 +33,9 @@ import { is_boolean, is_object, is_string } from "#common/type-checker.js";
  *
  * A document changes one section at a time. Each change names the revision
  * its author read, so no author overwrites what it has not seen.
- */
-
-/*
- * TODO:[documents] nothing here reads a document back from where it is kept.
- * That waits on deciding the form a document is kept in.
+ *
+ * A document is kept as a head pointer over immutable versions, each version
+ * a file holding the document as JSON. Reading one back is parsing that JSON.
  */
 
 /*
@@ -252,6 +251,98 @@ function readonly_document(text: string, author: DocumentAuthor, now: string): D
     written_at: now,
   };
   return { ...document, sections: { [BODY_SECTION]: body } };
+}
+
+/*
+ * Idea: A document read back from a version file, or the first thing wrong
+ * with it.
+ *
+ * (unknown) => Result<Document>
+ * `value` is the file's JSON, decoded. A document that follows a template is
+ * not held to that template here; `document_standing` is.
+ * Pure
+ * Public
+ */
+function parse_document(value: unknown): Result<Document> {
+  if (!is_object(value)) return { ok: false, error: "document must be an object" };
+  const { template_id, writable_by, revision, sections } = value;
+  if (null !== template_id && !is_string(template_id)) {
+    return { ok: false, error: "document template_id must be a string or null" };
+  }
+  if (!Array.isArray(writable_by) || !writable_by.every(_is_author)) {
+    return { ok: false, error: "document writable_by must be a list of authors" };
+  }
+  if (!is_number(revision) || !Number.isInteger(revision) || revision < 0) {
+    return { ok: false, error: "document revision must be a non-negative integer" };
+  }
+  if (!is_object(sections)) {
+    return { ok: false, error: "document sections must be an object" };
+  }
+  const parsed: Record<string, DocumentSection> = {};
+  for (const [id, raw] of Object.entries(sections)) {
+    if (null === template_id && BODY_SECTION !== id) {
+      return { ok: false, error: `document section ${id}: only a body without a template` };
+    }
+    if (!_SECTION_ID.test(id) || id in Object.prototype) {
+      return { ok: false, error: `document section ${id}: not a section id` };
+    }
+    const section = map_error(
+      _parse_section(raw), (error) => `document section ${id}: ${error}`);
+    if (!section.ok) return section;
+    parsed[id] = section.value;
+  }
+  return { ok: true, value: { template_id, writable_by, revision, sections: parsed } };
+}
+
+/*
+ * Idea: One section read back, or the first thing wrong with it.
+ *
+ * (unknown) => Result<DocumentSection>
+ * Pure
+ * Private
+ */
+function _parse_section(raw: unknown): Result<DocumentSection> {
+  if (!is_object(raw)) return { ok: false, error: "must be an object" };
+  const { text, status, written_by, written_at } = raw;
+  if (!_has_text(text)) return { ok: false, error: "text must be a non-empty string" };
+  if (!_is_status(status)) return { ok: false, error: "unknown status" };
+  if (!_is_author(written_by)) return { ok: false, error: "unknown written_by" };
+  if (!_is_iso_time(written_at)) {
+    return { ok: false, error: "written_at must be an ISO 8601 time" };
+  }
+  return { ok: true, value: { text, status, written_by, written_at } };
+}
+
+/*
+ * (unknown) => boolean
+ * Pure
+ * Private
+ */
+function _is_author(value: unknown): value is DocumentAuthor {
+  return (Object.values(DocumentAuthor) as unknown[]).includes(value);
+}
+
+/*
+ * (unknown) => boolean
+ * Pure
+ * Private
+ */
+function _is_status(value: unknown): value is SectionStatus {
+  return (Object.values(SectionStatus) as unknown[]).includes(value);
+}
+
+/*
+ * Idea: Whether a value is a time exactly as this application writes one.
+ *
+ * (unknown) => boolean
+ * Pure
+ * Private
+ */
+function _is_iso_time(value: unknown): value is string {
+  if (!is_string(value)) return false;
+  const time = new Date(value);
+  if (Number.isNaN(time.getTime())) return false;
+  return time.toISOString() === value;
 }
 
 /*
