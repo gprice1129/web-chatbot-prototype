@@ -10,10 +10,12 @@ class FileDbService {
     this._exec = exec;
   }
 
+  // A null chat attaches the file to nothing: a document's version is a file
+  // that belongs to no chat.
   async create_file_if_absent(
     file_id: string,
     user_id: string,
-    chat_id: string,
+    chat_id: string | null,
     original_filename: string | null,
     mime_type: string,
     // TODO:[db] size_bytes is string on read and number on write
@@ -46,7 +48,8 @@ class FileDbService {
        ),
        linked AS (
          INSERT INTO chat_files (chat_id, file_id)
-         SELECT $10, id FROM combined
+         SELECT $10::uuid, id FROM combined
+         WHERE $10::uuid IS NOT NULL
          ON CONFLICT DO NOTHING
        )
        SELECT * FROM combined`,
