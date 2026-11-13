@@ -3,7 +3,7 @@ export { DocumentDbService };
 import assert from "node:assert";
 import type { DocumentAuthor } from "common";
 import type { Executor } from "./transaction.js";
-import type { DocumentRecord, DocumentVersion } from "./types.js";
+import type { DocumentHead, DocumentRecord, DocumentVersion } from "./types.js";
 
 // Documents as rows: identity, ownership and the head pointer. Content lives
 // in versions, which are files.
@@ -97,6 +97,25 @@ class DocumentDbService {
     assert(result.rows.length <= 1);
     if (result.rows.length === 0) return null;
     return result.rows[0];
+  }
+
+  // The document's row and the id of the file holding its current content,
+  // read together so the two always agree. `file_id` is null before the first
+  // write.
+  async get_document_head(
+    document_id: string, user_id: string,
+  ): Promise<DocumentHead | null> {
+    const result = await this._exec.query(
+      `SELECT d.*, v.file_id AS head_file_id
+         FROM documents d
+         LEFT JOIN document_versions v
+                ON v.document_id = d.id AND v.revision = d.revision
+        WHERE d.id = $1 AND d.user_id = $2`,
+      [document_id, user_id]);
+    assert(result.rows.length <= 1);
+    if (result.rows.length === 0) return null;
+    const { head_file_id, ...document } = result.rows[0];
+    return { document, file_id: head_file_id };
   }
 
   // The version the head pointer names; null before the first write.

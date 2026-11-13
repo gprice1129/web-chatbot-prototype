@@ -12,7 +12,7 @@
 --     or follow none.
 --   * a document's content is never updated in place. every accepted write
 --     produces the next revision, and each revision's content is a file (004)
---     holding the document as json. document_versions links a document to
+--     holding its sections as json. document_versions links a document to
 --     the file of each revision it has had.
 --   * documents.revision is the head pointer: the current content is the
 --     version whose revision equals it. a document at revision 0 has no
@@ -96,7 +96,7 @@ comment on table  document_versions is 'one row per revision of a document: the 
 
 comment on column document_versions.document_id is 'the document; cascades on delete so removing a document drops its history. its files are not removed here.';
 comment on column document_versions.revision    is 'the revision this row is the content of; the document''s head when equal to documents.revision.';
-comment on column document_versions.file_id     is 'the file (004) holding the document as json at this revision. restricts deleting a file a version still names.';
+comment on column document_versions.file_id     is 'the file (004) holding the document''s sections as json at this revision. restricts deleting a file a version still names.';
 comment on column document_versions.written_by  is 'the author whose write produced this revision: user or assistant.';
 comment on column document_versions.section_id  is 'the section that write changed.';
 

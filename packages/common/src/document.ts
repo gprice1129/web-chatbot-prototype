@@ -7,7 +7,7 @@ export {
   parse_template_guidance,
   empty_document,
   readonly_document,
-  parse_document,
+  parse_document_sections,
   write_section,
   document_standing,
 }
@@ -22,7 +22,7 @@ export type {
 }
 
 import { map_error, type Result } from "#common/result.js";
-import { is_boolean, is_number, is_object, is_string } from "#common/type-checker.js";
+import { is_boolean, is_object, is_string } from "#common/type-checker.js";
 
 /*
  * Main Concept
@@ -34,8 +34,10 @@ import { is_boolean, is_number, is_object, is_string } from "#common/type-checke
  * A document changes one section at a time. Each change names the revision
  * its author read, so no author overwrites what it has not seen.
  *
- * A document is kept as a head pointer over immutable versions, each version
- * a file holding the document as JSON. Reading one back is parsing that JSON.
+ * A document is kept as a head pointer over immutable versions. A version is
+ * a file holding the document's sections as JSON, and nothing else: what the
+ * document follows, who may write it and its revision are kept once, with the
+ * pointer.
  */
 
 /*
@@ -254,44 +256,32 @@ function readonly_document(text: string, author: DocumentAuthor, now: string): D
 }
 
 /*
- * Idea: A document read back from a version file, or the first thing wrong
- * with it.
+ * Idea: A document's sections read back from a version file, or the first
+ * thing wrong with them.
  *
- * (unknown) => Result<Document>
- * `value` is the file's JSON, decoded. A document that follows a template is
- * not held to that template here; `document_standing` is.
+ * (string | null, unknown) => Result<Record<string, DocumentSection>>
+ * `value` is the file's JSON, decoded. `template_id` is the document's: with
+ * none, only a body is admitted. A document that follows a template is not
+ * held to that template here; `document_standing` is.
  * Pure
  * Public
  */
-function parse_document(value: unknown): Result<Document> {
-  if (!is_object(value)) return { ok: false, error: "document must be an object" };
-  const { template_id, writable_by, revision, sections } = value;
-  if (null !== template_id && !is_string(template_id)) {
-    return { ok: false, error: "document template_id must be a string or null" };
-  }
-  if (!Array.isArray(writable_by) || !writable_by.every(_is_author)) {
-    return { ok: false, error: "document writable_by must be a list of authors" };
-  }
-  if (!is_number(revision) || !Number.isInteger(revision) || revision < 0) {
-    return { ok: false, error: "document revision must be a non-negative integer" };
-  }
-  if (!is_object(sections)) {
-    return { ok: false, error: "document sections must be an object" };
-  }
+function parse_document_sections(
+    template_id: string | null, value: unknown): Result<Record<string, DocumentSection>> {
+  if (!is_object(value)) return { ok: false, error: "sections must be an object" };
   const parsed: Record<string, DocumentSection> = {};
-  for (const [id, raw] of Object.entries(sections)) {
+  for (const [id, raw] of Object.entries(value)) {
     if (null === template_id && BODY_SECTION !== id) {
-      return { ok: false, error: `document section ${id}: only a body without a template` };
+      return { ok: false, error: `section ${id}: only a body without a template` };
     }
     if (!_SECTION_ID.test(id) || id in Object.prototype) {
-      return { ok: false, error: `document section ${id}: not a section id` };
+      return { ok: false, error: `section ${id}: not a section id` };
     }
-    const section = map_error(
-      _parse_section(raw), (error) => `document section ${id}: ${error}`);
+    const section = map_error(_parse_section(raw), (error) => `section ${id}: ${error}`);
     if (!section.ok) return section;
     parsed[id] = section.value;
   }
-  return { ok: true, value: { template_id, writable_by, revision, sections: parsed } };
+  return { ok: true, value: parsed };
 }
 
 /*

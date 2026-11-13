@@ -74,6 +74,7 @@ export {
   SectionStatus,
   DocumentWriteError,
   empty_document,
+  parse_document_sections,
   parse_template_guidance,
   write_section,
 } from "#common/document.js";
@@ -81,6 +82,7 @@ export {
 export type {
   Document,
   DocumentTemplate,
+  DocumentWrite,
   TemplateSection,
   TemplateGuidance,
 } from "#common/document.js";

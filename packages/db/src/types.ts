@@ -6,6 +6,7 @@ export {
   ChatMessageRole,
   ChatMessageWithFileIds,
   ChatTranscriptTurn,
+  DocumentHead,
   DocumentRecord,
   DocumentVersion,
   File,
@@ -144,4 +145,11 @@ interface DocumentVersion {
   written_by: DocumentAuthor;
   section_id: string;
   created_at: Date;
+}
+
+// A document's row with the id of the file holding its current content, null
+// before the first write.
+interface DocumentHead {
+  document: DocumentRecord;
+  file_id: string | null;
 }

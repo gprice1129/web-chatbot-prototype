@@ -82,6 +82,17 @@ class FileDbService {
     return result.rows;
   }
 
+  // The user's file whatever it is attached to, or nothing. A document's
+  // version is a file in no chat, so it is found this way.
+  async get_user_file(file_id: string, user_id: string): Promise<File | null> {
+    const result = await this._exec.query(
+      "SELECT * FROM files WHERE id = $1 AND user_id = $2",
+      [file_id, user_id]);
+    assert(result.rows.length <= 1);
+    if (result.rows.length === 0) return null;
+    return result.rows[0];
+  }
+
   async get_file_by_id(
     file_id: string, chat_id: string, user_id: string
   ): Promise<File | null> {

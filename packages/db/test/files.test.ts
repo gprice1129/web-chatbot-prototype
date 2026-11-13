@@ -32,6 +32,21 @@ function create(user_id: string, chat_id: string | null, checksum: string) {
     "local", `test/${crypto.randomUUID()}`, FileStatus.UPLOADED);
 }
 
+describe("get_user_file", () => {
+  it("finds the user's file whether or not it is in a chat, and nobody else's", async () => {
+    const owner = await make_user(pool, "file-owner");
+    const other = await make_user(pool, "file-other");
+    const chat_id = await make_chat(pool, owner);
+    const attached = await create(owner, chat_id, "d".repeat(64));
+    const loose = await create(owner, null, "e".repeat(64));
+
+    assert.equal((await db.file_db.get_user_file(attached.file.id, owner))?.id, attached.file.id);
+    assert.equal((await db.file_db.get_user_file(loose.file.id, owner))?.id, loose.file.id);
+    assert.equal(await db.file_db.get_user_file(loose.file.id, other), null);
+    assert.equal(await db.file_db.get_user_file(crypto.randomUUID(), owner), null);
+  });
+});
+
 describe("create_file_if_absent", () => {
   it("attaches the file to the chat it was given", async () => {
     const user_id = await make_user(pool, "uploader");

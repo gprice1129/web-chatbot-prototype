@@ -10,7 +10,7 @@ import {
   parse_template_guidance,
   empty_document,
   readonly_document,
-  parse_document,
+  parse_document_sections,
   write_section,
   document_standing,
   type Document,
@@ -163,66 +163,53 @@ describe("readonly_document", () => {
   });
 });
 
-// A document as a version file holds it, decoded.
+// A document's sections as a version file holds them, decoded.
 function kept(document: Document): Record<string, unknown> {
-  return JSON.parse(JSON.stringify(document));
+  return JSON.parse(JSON.stringify(document.sections));
 }
 
-describe("parse_document", () => {
-  it("reads back a document as it was kept", async () => {
+describe("parse_document_sections", () => {
+  it("reads back sections as they were kept", () => {
     const written = write_section(TEMPLATE, built(), write_of(), NOW);
     assert.ok(written.ok);
-    assert.deepEqual(parse_document(kept(written.value)), written);
-    assert.deepEqual(parse_document(kept(built())), { ok: true, value: built() });
-    assert.deepEqual(parse_document(kept(uploaded())), { ok: true, value: uploaded() });
+    assert.deepEqual(
+      parse_document_sections(TEMPLATE.id, kept(written.value)),
+      { ok: true, value: written.value.sections });
+    assert.deepEqual(parse_document_sections(TEMPLATE.id, kept(built())), { ok: true, value: {} });
+    assert.deepEqual(
+      parse_document_sections(null, kept(uploaded())),
+      { ok: true, value: uploaded().sections });
   });
 
-  it("does not hold a document to its template", () => {
-    const dropped = { ...kept(uploaded()), template_id: "irb-protocol" };
-    assert.equal(parse_document(dropped).ok, true);
-  });
-
-  it("names the first thing wrong with the document", () => {
-    const refused = (value: unknown, error: string) => {
-      assert.deepEqual(parse_document(value), { ok: false, error });
-    };
-    refused("{}", "document must be an object");
-    refused({ ...kept(built()), template_id: 3 },
-      "document template_id must be a string or null");
-    refused({ ...kept(built()), writable_by: ["user", "system"] },
-      "document writable_by must be a list of authors");
-    refused({ ...kept(built()), revision: -1 },
-      "document revision must be a non-negative integer");
-    refused({ ...kept(built()), revision: 1.5 },
-      "document revision must be a non-negative integer");
-    refused({ ...kept(built()), sections: [] }, "document sections must be an object");
+  it("does not hold sections to their template", () => {
+    assert.equal(parse_document_sections("irb-protocol", kept(uploaded())).ok, true);
   });
 
   it("names the section and what is wrong with it", () => {
-    const body = (kept(uploaded()).sections as Record<string, object>)[BODY_SECTION];
+    const body = kept(uploaded())[BODY_SECTION] as object;
     const refused = (sections: unknown, error: string) => {
       assert.deepEqual(
-        parse_document({ ...kept(built()), sections }),
-        { ok: false, error: `document section ${error}` });
+        parse_document_sections(TEMPLATE.id, sections), { ok: false, error });
     };
-    refused({ aims: "text" }, "aims: must be an object");
-    refused({ aims: { ...body, text: " " } }, "aims: text must be a non-empty string");
-    refused({ aims: { ...body, status: "empty" } }, "aims: unknown status");
-    refused({ aims: { ...body, written_by: "system" } }, "aims: unknown written_by");
+    refused([], "sections must be an object");
+    refused("{}", "sections must be an object");
+    refused({ aims: "text" }, "section aims: must be an object");
+    refused({ aims: { ...body, text: " " } }, "section aims: text must be a non-empty string");
+    refused({ aims: { ...body, status: "empty" } }, "section aims: unknown status");
+    refused({ aims: { ...body, written_by: "system" } }, "section aims: unknown written_by");
     refused({ aims: { ...body, written_at: "yesterday" } },
-      "aims: written_at must be an ISO 8601 time");
-    refused({ "has-dash": body }, "has-dash: not a section id");
+      "section aims: written_at must be an ISO 8601 time");
+    refused({ "has-dash": body }, "section has-dash: not a section id");
     refused(JSON.parse(`{ "__proto__": ${JSON.stringify(body)} }`),
-      "__proto__: not a section id");
-    refused({ constructor: body }, "constructor: not a section id");
+      "section __proto__: not a section id");
+    refused({ constructor: body }, "section constructor: not a section id");
   });
 
   it("admits only a body when the document follows no template", () => {
-    const body = (kept(uploaded()).sections as Record<string, object>)[BODY_SECTION];
-    const plain = { ...kept(uploaded()), sections: { aims: body } };
-    assert.deepEqual(parse_document(plain), {
+    const body = kept(uploaded())[BODY_SECTION] as object;
+    assert.deepEqual(parse_document_sections(null, { aims: body }), {
       ok: false,
-      error: "document section aims: only a body without a template",
+      error: "section aims: only a body without a template",
     });
   });
 });

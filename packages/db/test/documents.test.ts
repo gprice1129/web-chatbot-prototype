@@ -201,3 +201,30 @@ describe("add_version", () => {
     assert.equal(file.rows.length, 1);
   });
 });
+
+describe("get_document_head", () => {
+  it("has no file before the first write, then names the head version's file", async () => {
+    const user_id = await make_user(pool, "head-reader");
+    const document = await db.document_db.create_document(user_id, "irb-protocol", BOTH);
+    const first_file = await make_file(pool, user_id);
+    const second_file = await make_file(pool, user_id);
+
+    const unwritten = await db.document_db.get_document_head(document.id, user_id);
+    assert.deepEqual(unwritten, { document, file_id: null });
+
+    await db.document_db.add_version(document.id, user_id, 0, first_file, DocumentAuthor.USER, "aims");
+    await db.document_db.add_version(document.id, user_id, 1, second_file, DocumentAuthor.USER, "aims");
+    const head = await db.document_db.get_document_head(document.id, user_id);
+
+    assert.equal(head?.document.revision, 2);
+    assert.equal(head?.file_id, second_file);
+  });
+
+  it("returns nothing for another user", async () => {
+    const owner = await make_user(pool, "head-owner");
+    const other = await make_user(pool, "head-other");
+    const document = await db.document_db.create_document(owner, null, []);
+
+    assert.equal(await db.document_db.get_document_head(document.id, other), null);
+  });
+});
