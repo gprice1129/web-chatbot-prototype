@@ -4,7 +4,7 @@ export {
   DocumentWriteError,
   BODY_SECTION,
   parse_document_template,
-  parse_template_guidance,
+  load_document_templates,
   empty_document,
   readonly_document,
   parse_document_sections,
@@ -16,11 +16,15 @@ export type {
   DocumentSection,
   DocumentTemplate,
   TemplateSection,
+  TemplateMetadata,
   TemplateGuidance,
   DocumentWrite,
   DocumentStanding,
 }
 
+import * as path from "node:path";
+
+import { find_files, read_text } from "#common/file.js";
 import { map_error, type Result } from "#common/result.js";
 import { is_boolean, is_object, is_string } from "#common/type-checker.js";
 
@@ -89,16 +93,34 @@ interface Document {
 }
 
 /*
- * Idea: One section a template gives its documents.
- *
- * TODO:[documents] template files also carry `user_placeholder`, which a
- * person sees until a section is written. It is not part of a document's
- * shape. Nothing reads it yet; it belongs here beside the guidance reader.
+ * Idea: What a section is called, and whether a document must have it.
  */
-interface TemplateSection {
+interface TemplateMetadata {
   id: string;
   title: string;
   required: boolean;
+}
+
+/*
+ * Idea: What belongs in a section, in words written for its reader.
+ *
+ * `model` is written for the model.
+ *
+ * TODO:[documents] template files also carry `user_placeholder`, which a
+ * person sees until a section is written. Nothing reads it yet; it belongs
+ * here.
+ */
+interface TemplateGuidance {
+  model: string;
+}
+
+/*
+ * Idea: One section a template gives its documents: what it is, and what
+ * belongs in it.
+ */
+interface TemplateSection {
+  metadata: TemplateMetadata;
+  guidance: TemplateGuidance;
 }
 
 /*
@@ -114,9 +136,10 @@ const _TEMPLATE_ID = /^[a-z0-9-]+$/;
 const _SECTION_ID = /^[a-z][a-z0-9_]*$/;
 
 /*
- * Idea: A template as authored, or the first thing wrong with it.
+ * Idea: A template file as authored, or the first thing wrong with it.
  *
  * (unknown) => Result<DocumentTemplate>
+ * `value` is the file's JSON, decoded.
  * Pure
  * Public
  */
@@ -137,8 +160,9 @@ function parse_document_template(value: unknown): Result<DocumentTemplate> {
     const section = map_error(
       _parse_template_section(raw), (error) => `template ${id}: section ${index}: ${error}`);
     if (!section.ok) return section;
-    if (parsed.some((seen) => seen.id === section.value.id)) {
-      return { ok: false, error: `template ${id}: duplicate section id '${section.value.id}'` };
+    const section_id = section.value.metadata.id;
+    if (parsed.some((seen) => seen.metadata.id === section_id)) {
+      return { ok: false, error: `template ${id}: duplicate section id '${section_id}'` };
     }
     parsed.push(section.value);
   }
@@ -150,14 +174,13 @@ function parse_document_template(value: unknown): Result<DocumentTemplate> {
  *
  * (unknown) => Result<TemplateSection>
  * An id that every object already answers to is refused, because sections
- * are looked up by id. Fields the shared template does not define are left
- * behind.
+ * are looked up by id. Fields the template does not define are left behind.
  * Pure
  * Private
  */
 function _parse_template_section(raw: unknown): Result<TemplateSection> {
   if (!is_object(raw)) return { ok: false, error: "must be an object" };
-  const { id, title, required } = raw;
+  const { id, title, required, model_guidance } = raw;
   if (!is_string(id) || !_SECTION_ID.test(id)) {
     return {
       ok: false,
@@ -171,46 +194,60 @@ function _parse_template_section(raw: unknown): Result<TemplateSection> {
   if (!is_boolean(required)) {
     return { ok: false, error: `${id}: required must be a boolean` };
   }
-  return { ok: true, value: { id, title, required } };
+  if (!_has_text(model_guidance)) {
+    return { ok: false, error: `${id}: model_guidance must be a non-empty string` };
+  }
+  const metadata: TemplateMetadata = { id, title, required };
+  return { ok: true, value: { metadata, guidance: { model: model_guidance } } };
 }
 
 /*
- * Idea: What belongs in each section, in words written for the model, keyed
- * by section.
- */
-type TemplateGuidance = Record<string, string>;
-
-/*
- * Idea: The guidance a template's file gives, or the first thing wrong with
- * it.
+ * Idea: The templates under a directory, keyed by id, or the first thing
+ * wrong with any of them.
  *
- * (DocumentTemplate, unknown) => Result<TemplateGuidance>
- * `value` is the file the template was read from. Every section the template
- * names must be guided; entries for other sections are left behind.
- * Pure
+ * (string) => Result<Record<string, DocumentTemplate>>
+ * A template is one JSON file, named for its id, at the top of `root`. Every
+ * error names the file.
+ * Side Effect: reads the filesystem
  * Public
  */
-function parse_template_guidance(
-    template: DocumentTemplate, value: unknown): Result<TemplateGuidance> {
-  if (!is_object(value) || !Array.isArray(value["sections"])) {
-    return { ok: false, error: `template ${template.id}: sections must be an array` };
+async function load_document_templates(
+    root: string): Promise<Result<Record<string, DocumentTemplate>>> {
+  const found = map_error(
+    await find_files(root, { extension: ".json" }), (error) => `${root}: ${error}`);
+  if (!found.ok) return found;
+  const templates: Record<string, DocumentTemplate> = {};
+  for (const file of found.value.files) {
+    const read = map_error(await _read_template_file(file), (error) => `${file}: ${error}`);
+    if (!read.ok) return read;
+    templates[read.value.id] = read.value;
   }
-  const given = new Map<unknown, unknown>();
-  for (const raw of value["sections"]) {
-    if (is_object(raw)) given.set(raw["id"], raw["model_guidance"]);
+  return { ok: true, value: templates };
+}
+
+/*
+ * Idea: One template file read whole, or the first thing wrong with it.
+ *
+ * (string) => Result<DocumentTemplate>
+ * Side Effect: reads the filesystem
+ * Private
+ */
+async function _read_template_file(file: string): Promise<Result<DocumentTemplate>> {
+  const text = await read_text(file);
+  if (!text.ok) return text;
+  let authored: unknown;
+  try {
+    authored = JSON.parse(text.value);
+  } catch {
+    return { ok: false, error: "not valid JSON" };
   }
-  const guidance: TemplateGuidance = {};
-  for (const section of template.sections) {
-    const text = given.get(section.id);
-    if (!_has_text(text)) {
-      return {
-        ok: false,
-        error: `template ${template.id}: section ${section.id}: model_guidance must be a non-empty string`,
-      };
-    }
-    guidance[section.id] = text;
+  const parsed = parse_document_template(authored);
+  if (!parsed.ok) return parsed;
+  const { id } = parsed.value;
+  if (path.basename(file, ".json") !== id) {
+    return { ok: false, error: `template id '${id}' must match the file name` };
   }
-  return { ok: true, value: guidance };
+  return parsed;
 }
 
 /*
@@ -426,7 +463,9 @@ function document_standing(
  */
 function _required_ids(template: DocumentTemplate | null): string[] {
   if (null === template) return [];
-  return template.sections.filter((section) => section.required).map((section) => section.id);
+  return template.sections
+    .filter((section) => section.metadata.required)
+    .map((section) => section.metadata.id);
 }
 
 /*
@@ -454,7 +493,7 @@ function _section_ids(template: DocumentTemplate | null, document: Document): st
       `document follows template '${document.template_id}', but was given '${given}'`);
   }
   if (null === template) return [BODY_SECTION];
-  return template.sections.map((section) => section.id);
+  return template.sections.map((section) => section.metadata.id);
 }
 
 /*

@@ -1,5 +1,8 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import * as path from "node:path";
 
 import {
   DocumentAuthor,
@@ -7,7 +10,7 @@ import {
   DocumentWriteError,
   BODY_SECTION,
   parse_document_template,
-  parse_template_guidance,
+  load_document_templates,
   empty_document,
   readonly_document,
   parse_document_sections,
@@ -25,36 +28,48 @@ const TEMPLATE: DocumentTemplate = {
   id: "irb-protocol",
   title: "IRB Protocol",
   sections: [
-    { id: "background", title: "Background", required: true },
-    { id: "aims", title: "Specific aims", required: false },
-    { id: "design", title: "Study design", required: true },
+    {
+      metadata: { id: "background", title: "Background", required: true },
+      guidance: { model: "Why it matters." },
+    },
+    {
+      metadata: { id: "aims", title: "Specific aims", required: false },
+      guidance: { model: "Numbered aims." },
+    },
+    {
+      metadata: { id: "design", title: "Study design", required: true },
+      guidance: { model: "What is done." },
+    },
   ],
 };
 
-// TEMPLATE as a content file would hold it, with `patch` laid over it.
+// TEMPLATE's sections as a content file would hold them: flat, each one guided.
+function authored_sections(): Array<Record<string, unknown>> {
+  return TEMPLATE.sections.map((section) => ({
+    ...section.metadata, model_guidance: section.guidance.model,
+  }));
+}
+
+// TEMPLATE's file as authored, with `patch` laid over it.
 function authored(patch: object = {}): unknown {
-  return { ...JSON.parse(JSON.stringify(TEMPLATE)), ...patch };
+  return { id: TEMPLATE.id, title: TEMPLATE.title, sections: authored_sections(), ...patch };
 }
 
 // TEMPLATE's first section as authored, with `patch` laid over it, alone.
 function authored_section(patch: object): unknown {
-  return authored({ sections: [{ ...TEMPLATE.sections[0], ...patch }] });
+  return authored({ sections: [{ ...authored_sections()[0], ...patch }] });
 }
 
 describe("parse_document_template", () => {
-  it("reads a template as authored, sections in order", () => {
+  it("reads a template file as authored, sections in order", () => {
     assert.deepEqual(parse_document_template(authored()), { ok: true, value: TEMPLATE });
   });
 
-  it("leaves behind what the shared template does not define", () => {
-    const with_extras = authored_section({
-      model_guidance: "Why the question matters.",
-      user_placeholder: "Why this study matters.",
-    });
-    assert.deepEqual(parse_document_template(with_extras), {
-      ok: true,
-      value: { ...TEMPLATE, sections: [TEMPLATE.sections[0]] },
-    });
+  it("leaves behind what the template does not define", () => {
+    const with_extras = authored_section({ user_placeholder: "Why this study matters." });
+    assert.deepEqual(
+      parse_document_template(with_extras),
+      { ok: true, value: { ...TEMPLATE, sections: [TEMPLATE.sections[0]] } });
   });
 
   it("names the first thing wrong with the template", () => {
@@ -67,7 +82,9 @@ describe("parse_document_template", () => {
     refused(authored({ title: " " }), "template irb-protocol: title must be a non-empty string");
     refused(authored({ sections: [] }),
       "template irb-protocol: sections must be a non-empty array");
-    refused(authored({ sections: [TEMPLATE.sections[0], TEMPLATE.sections[0]] }),
+    refused(authored({ sections: "none" }),
+      "template irb-protocol: sections must be a non-empty array");
+    refused(authored({ sections: [authored_sections()[0], authored_sections()[0]] }),
       "template irb-protocol: duplicate section id 'background'");
   });
 
@@ -83,6 +100,9 @@ describe("parse_document_template", () => {
     refused({ id: "constructor" }, "id 'constructor' is reserved");
     refused({ title: "" }, "background: title must be a non-empty string");
     refused({ required: "yes" }, "background: required must be a boolean");
+    refused({ model_guidance: " " }, "background: model_guidance must be a non-empty string");
+    refused({ model_guidance: undefined },
+      "background: model_guidance must be a non-empty string");
     assert.deepEqual(
       parse_document_template(authored({ sections: ["aims"] })),
       { ok: false, error: "template irb-protocol: section 0: must be an object" });
@@ -99,34 +119,64 @@ function uploaded(): Document {
   return readonly_document("The proposal as uploaded.", DocumentAuthor.USER, NOW);
 }
 
-describe("parse_template_guidance", () => {
-  const guided = (guidance: Record<string, string>) => authored({
-    sections: TEMPLATE.sections.map((section) => ({
-      ...section, model_guidance: guidance[section.id], user_placeholder: "Shown while empty.",
-    })),
-  });
-  const GUIDANCE = { background: "Why it matters.", aims: "Numbered aims.", design: "What is done." };
+// Materialize `files` under a fresh temp directory, run the test, clean up.
+async function with_templates(
+  files: Record<string, string>,
+  run: (dir: string) => Promise<void>,
+): Promise<void> {
+  const dir = mkdtempSync(path.join(tmpdir(), "templates-"));
+  try {
+    for (const [rel, text] of Object.entries(files)) {
+      const file = path.join(dir, rel);
+      mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, text);
+    }
+    await run(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
 
-  it("reads each template section's guidance from the file, and nothing else", () => {
-    assert.deepEqual(parse_template_guidance(TEMPLATE, guided(GUIDANCE)), { ok: true, value: GUIDANCE });
+describe("load_document_templates", () => {
+  // TEMPLATE's file as it sits on disk, with `patch` laid over it.
+  const file_of = (patch: object = {}) => JSON.stringify(authored(patch));
+
+  it("reads every template at the top of the directory, keyed by id", async () => {
+    await with_templates({
+      "irb-protocol.json": file_of(),
+      "budget.json": file_of({ id: "budget", title: "Budget" }),
+      "notes.md": "not a template",
+      "drafts/unfinished.json": "{",
+    }, async (dir) => {
+      const loaded = await load_document_templates(dir);
+      assert.ok(loaded.ok);
+      assert.deepEqual(Object.keys(loaded.value).sort(), ["budget", "irb-protocol"]);
+      assert.deepEqual(loaded.value["irb-protocol"], TEMPLATE);
+      assert.equal(loaded.value["budget"].title, "Budget");
+    });
   });
 
-  it("leaves behind guidance for a section the template does not name", () => {
-    const file = guided(GUIDANCE) as { sections: object[] };
-    file.sections.push({ id: "budget", model_guidance: "Costs." });
-    assert.deepEqual(parse_template_guidance(TEMPLATE, file), { ok: true, value: GUIDANCE });
-  });
-
-  it("refuses a template section the file leaves unguided", () => {
-    const refused = (file: unknown, error: string) => {
-      assert.deepEqual(
-        parse_template_guidance(TEMPLATE, file),
-        { ok: false, error: `template irb-protocol: ${error}` });
+  it("names the file and the first thing wrong with it", async () => {
+    const refused = async (files: Record<string, string>, error: RegExp) => {
+      await with_templates(files, async (dir) => {
+        const loaded = await load_document_templates(dir);
+        assert.equal(loaded.ok, false);
+        if (!loaded.ok) assert.match(loaded.error, error);
+      });
     };
-    refused(guided({ ...GUIDANCE, aims: " " }),
-      "section aims: model_guidance must be a non-empty string");
-    refused(authored(), "section background: model_guidance must be a non-empty string");
-    refused(authored({ sections: "none" }), "sections must be an array");
+    await refused({ "irb-protocol.json": "{" }, /irb-protocol\.json: not valid JSON$/);
+    await refused({ "irb-protocol.json": file_of({ title: "" }) },
+      /irb-protocol\.json: template irb-protocol: title must be a non-empty string$/);
+    await refused({ "protocol.json": file_of() },
+      /protocol\.json: template id 'irb-protocol' must match the file name$/);
+    await refused({ "irb-protocol.json": JSON.stringify(authored_section({ model_guidance: "" })) },
+      /irb-protocol\.json: template irb-protocol: section 0: background: model_guidance/);
+  });
+
+  it("refuses a directory that is not there", async () => {
+    const loaded = await load_document_templates(path.join(tmpdir(), "templates-not-there"));
+    assert.equal(loaded.ok, false);
+    if (!loaded.ok) assert.match(loaded.error, /templates-not-there: unreadable/);
   });
 });
 

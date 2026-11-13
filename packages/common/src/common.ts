@@ -75,7 +75,6 @@ export {
   DocumentWriteError,
   empty_document,
   parse_document_sections,
-  parse_template_guidance,
   write_section,
 } from "#common/document.js";
 
