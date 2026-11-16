@@ -74,6 +74,7 @@ export {
   SectionStatus,
   DocumentWriteError,
   empty_document,
+  load_document_templates,
   parse_document_sections,
   write_section,
 } from "#common/document.js";

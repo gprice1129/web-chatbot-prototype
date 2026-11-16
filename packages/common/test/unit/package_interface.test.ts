@@ -22,6 +22,7 @@ describe("the common package interface", () => {
       "is_object",
       "is_string",
       "list_files",
+      "load_document_templates",
       "map_error",
       "map_ok",
       "ok_or_throw",
