@@ -21,6 +21,7 @@ describe("the common package interface", () => {
       "is_number",
       "is_object",
       "is_string",
+      "iso_now",
       "list_files",
       "load_document_templates",
       "map_error",

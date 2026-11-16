@@ -1,4 +1,5 @@
 export {
+  iso_now,
   parse_iso_date,
   parse_duration_ms,
 }
@@ -13,6 +14,18 @@ const _UNIT_MS: Record<string, number> = {
   h: 3_600_000, hr: 3_600_000, hour: 3_600_000, hours: 3_600_000,
   d: 86_400_000, day: 86_400_000, days: 86_400_000,
 };
+
+/*
+ * Idea: The present moment, written as this application writes a time.
+ *
+ * () => string
+ * An ISO 8601 time in UTC, to the millisecond.
+ * Side Effect: reads the clock
+ * Public
+ */
+function iso_now(): string {
+  return new Date().toISOString();
+}
 
 /*
  * Idea: Read a calendar date written as YYYY-MM-DD, and nothing else.
