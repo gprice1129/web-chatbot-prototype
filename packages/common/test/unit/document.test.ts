@@ -11,6 +11,7 @@ import {
   BODY_SECTION,
   parse_document_template,
   load_document_templates,
+  find_document_template,
   empty_document,
   readonly_document,
   parse_document_sections,
@@ -177,6 +178,28 @@ describe("load_document_templates", () => {
     const loaded = await load_document_templates(path.join(tmpdir(), "templates-not-there"));
     assert.equal(loaded.ok, false);
     if (!loaded.ok) assert.match(loaded.error, /templates-not-there: unreadable/);
+  });
+});
+
+describe("find_document_template", () => {
+  const templates = { "irb-protocol": TEMPLATE };
+
+  it("finds a loaded template by its id", () => {
+    assert.deepEqual(
+      find_document_template(templates, "irb-protocol"), { ok: true, value: TEMPLATE });
+  });
+
+  it("names the missing id and the ids that are loaded", () => {
+    assert.deepEqual(find_document_template(templates, "budget"), {
+      ok: false, error: "template 'budget' is not loaded (loaded: irb-protocol)",
+    });
+    assert.deepEqual(find_document_template({}, "budget"), {
+      ok: false, error: "template 'budget' is not loaded (loaded: none)",
+    });
+  });
+
+  it("does not find what every object inherits", () => {
+    assert.equal(find_document_template(templates, "constructor").ok, false);
   });
 });
 

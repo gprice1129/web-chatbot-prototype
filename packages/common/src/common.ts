@@ -75,6 +75,7 @@ export {
   SectionStatus,
   DocumentWriteError,
   empty_document,
+  find_document_template,
   load_document_templates,
   parse_document_sections,
   write_section,

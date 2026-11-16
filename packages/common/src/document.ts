@@ -5,6 +5,7 @@ export {
   BODY_SECTION,
   parse_document_template,
   load_document_templates,
+  find_document_template,
   empty_document,
   readonly_document,
   parse_document_sections,
@@ -248,6 +249,23 @@ async function _read_template_file(file: string): Promise<Result<DocumentTemplat
     return { ok: false, error: `template id '${id}' must match the file name` };
   }
   return parsed;
+}
+
+/*
+ * Idea: One of the loaded templates by its id, or which ones there are.
+ *
+ * (Record<string, DocumentTemplate>, string) => Result<DocumentTemplate>
+ * An id that names something every object inherits is not a template.
+ * Pure
+ * Public
+ */
+function find_document_template(
+    templates: Record<string, DocumentTemplate>, id: string): Result<DocumentTemplate> {
+  if (!Object.hasOwn(templates, id)) {
+    const loaded = Object.keys(templates).join(", ") || "none";
+    return { ok: false, error: `template '${id}' is not loaded (loaded: ${loaded})` };
+  }
+  return { ok: true, value: templates[id] };
 }
 
 /*

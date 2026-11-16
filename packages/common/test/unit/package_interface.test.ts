@@ -14,6 +14,7 @@ describe("the common package interface", () => {
       "SectionStatus",
       "as_list",
       "empty_document",
+      "find_document_template",
       "find_files",
       "find_markdown",
       "is_boolean",
