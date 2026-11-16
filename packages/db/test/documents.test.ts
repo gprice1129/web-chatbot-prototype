@@ -26,21 +26,21 @@ describe("create_document", () => {
   it("starts a document at revision 0 with the template and writers given", async () => {
     const user_id = await make_user(pool, "creator");
 
-    const document = await db.document_db.create_document(user_id, "irb-protocol", BOTH);
+    const record = await db.document_db.create_document(user_id, "irb-protocol", BOTH);
 
-    assert.equal(document.user_id, user_id);
-    assert.equal(document.template_id, "irb-protocol");
-    assert.deepEqual(document.writable_by, BOTH);
-    assert.equal(document.revision, 0);
+    assert.equal(record.user_id, user_id);
+    assert.equal(record.template_id, "irb-protocol");
+    assert.deepEqual(record.writable_by, BOTH);
+    assert.equal(record.revision, 0);
   });
 
   it("accepts a document with no template that nobody writes", async () => {
     const user_id = await make_user(pool, "uploader");
 
-    const document = await db.document_db.create_document(user_id, null, []);
+    const record = await db.document_db.create_document(user_id, null, []);
 
-    assert.equal(document.template_id, null);
-    assert.deepEqual(document.writable_by, []);
+    assert.equal(record.template_id, null);
+    assert.deepEqual(record.writable_by, []);
   });
 
   it("refuses a writer the schema does not know", async () => {
@@ -80,10 +80,10 @@ describe("attach_document and get_documents_by_chat", () => {
   it("attaches once however often it is asked", async () => {
     const user_id = await make_user(pool, "repeat");
     const chat_id = await make_chat(pool, user_id);
-    const document = await db.document_db.create_document(user_id, null, []);
+    const record = await db.document_db.create_document(user_id, null, []);
 
-    assert.equal(await db.document_db.attach_document(chat_id, document.id, user_id), true);
-    assert.equal(await db.document_db.attach_document(chat_id, document.id, user_id), true);
+    assert.equal(await db.document_db.attach_document(chat_id, record.id, user_id), true);
+    assert.equal(await db.document_db.attach_document(chat_id, record.id, user_id), true);
 
     assert.equal((await db.document_db.get_documents_by_chat(chat_id, user_id)).length, 1);
   });
@@ -93,11 +93,11 @@ describe("attach_document and get_documents_by_chat", () => {
     const other = await make_user(pool, "chat-owner");
     const own_chat = await make_chat(pool, owner);
     const other_chat = await make_chat(pool, other);
-    const document = await db.document_db.create_document(owner, null, []);
+    const record = await db.document_db.create_document(owner, null, []);
 
-    assert.equal(await db.document_db.attach_document(other_chat, document.id, owner), false);
-    assert.equal(await db.document_db.attach_document(own_chat, document.id, other), false);
-    assert.equal(await db.document_db.attach_document(own_chat, document.id, owner), true);
+    assert.equal(await db.document_db.attach_document(other_chat, record.id, owner), false);
+    assert.equal(await db.document_db.attach_document(own_chat, record.id, other), false);
+    assert.equal(await db.document_db.attach_document(own_chat, record.id, owner), true);
     assert.deepEqual(await db.document_db.get_documents_by_chat(own_chat, other), []);
   });
 });
@@ -106,12 +106,12 @@ describe("delete_document", () => {
   it("removes the user's document and its chat links, leaving the chat", async () => {
     const user_id = await make_user(pool, "deleter");
     const chat_id = await make_chat(pool, user_id);
-    const document = await db.document_db.create_document(user_id, null, []);
-    await db.document_db.attach_document(chat_id, document.id, user_id);
+    const record = await db.document_db.create_document(user_id, null, []);
+    await db.document_db.attach_document(chat_id, record.id, user_id);
 
-    assert.equal(await db.document_db.delete_document(document.id, user_id), true);
+    assert.equal(await db.document_db.delete_document(record.id, user_id), true);
 
-    assert.equal(await db.document_db.get_document_by_id(document.id, user_id), null);
+    assert.equal(await db.document_db.get_document_by_id(record.id, user_id), null);
     assert.deepEqual(await db.document_db.get_documents_by_chat(chat_id, user_id), []);
     assert.equal(await db.chat_db.get_chat_by_id(chat_id, user_id) !== null, true);
   });
@@ -119,83 +119,83 @@ describe("delete_document", () => {
   it("deletes nothing for another user", async () => {
     const owner = await make_user(pool, "keeper");
     const other = await make_user(pool, "intruder");
-    const document = await db.document_db.create_document(owner, null, []);
+    const record = await db.document_db.create_document(owner, null, []);
 
-    assert.equal(await db.document_db.delete_document(document.id, other), false);
-    assert.notEqual(await db.document_db.get_document_by_id(document.id, owner), null);
+    assert.equal(await db.document_db.delete_document(record.id, other), false);
+    assert.notEqual(await db.document_db.get_document_by_id(record.id, owner), null);
   });
 });
 
 describe("add_version", () => {
   it("moves the head pointer and records the version, in order", async () => {
     const user_id = await make_user(pool, "writer");
-    const document = await db.document_db.create_document(user_id, "irb-protocol", BOTH);
+    const record = await db.document_db.create_document(user_id, "irb-protocol", BOTH);
     const first_file = await make_file(pool, user_id);
     const second_file = await make_file(pool, user_id);
 
     const first = await db.document_db.add_version(
-      document.id, user_id, 0, first_file, DocumentAuthor.ASSISTANT, "aims");
+      record.id, user_id, 0, first_file, DocumentAuthor.ASSISTANT, "aims");
     const second = await db.document_db.add_version(
-      document.id, user_id, 1, second_file, DocumentAuthor.USER, "background");
+      record.id, user_id, 1, second_file, DocumentAuthor.USER, "background");
 
     assert.equal(first?.revision, 1);
     assert.equal(second?.revision, 2);
-    const head = await db.document_db.get_head_version(document.id, user_id);
+    const head = await db.document_db.get_head_version(record.id, user_id);
     assert.equal(head?.revision, 2);
     assert.equal(head?.file_id, second_file);
     assert.equal(head?.written_by, DocumentAuthor.USER);
     assert.equal(head?.section_id, "background");
-    const versions = await db.document_db.get_versions(document.id, user_id);
+    const versions = await db.document_db.get_versions(record.id, user_id);
     assert.deepEqual(versions.map((v) => [v.revision, v.file_id]), [[1, first_file], [2, second_file]]);
   });
 
   it("has no head version before the first write", async () => {
     const user_id = await make_user(pool, "unwritten");
-    const document = await db.document_db.create_document(user_id, null, []);
+    const record = await db.document_db.create_document(user_id, null, []);
 
-    assert.equal(await db.document_db.get_head_version(document.id, user_id), null);
-    assert.deepEqual(await db.document_db.get_versions(document.id, user_id), []);
+    assert.equal(await db.document_db.get_head_version(record.id, user_id), null);
+    assert.deepEqual(await db.document_db.get_versions(record.id, user_id), []);
   });
 
   it("refuses a write against a revision that has moved on, recording nothing", async () => {
     const user_id = await make_user(pool, "racer");
-    const document = await db.document_db.create_document(user_id, "irb-protocol", BOTH);
+    const record = await db.document_db.create_document(user_id, "irb-protocol", BOTH);
     const by_user = await make_file(pool, user_id);
     const by_assistant = await make_file(pool, user_id);
-    await db.document_db.add_version(document.id, user_id, 0, by_user, DocumentAuthor.USER, "aims");
+    await db.document_db.add_version(record.id, user_id, 0, by_user, DocumentAuthor.USER, "aims");
 
     const stale = await db.document_db.add_version(
-      document.id, user_id, 0, by_assistant, DocumentAuthor.ASSISTANT, "aims");
+      record.id, user_id, 0, by_assistant, DocumentAuthor.ASSISTANT, "aims");
 
     assert.equal(stale, null);
-    assert.equal((await db.document_db.get_document_by_id(document.id, user_id))?.revision, 1);
-    assert.equal((await db.document_db.get_versions(document.id, user_id)).length, 1);
+    assert.equal((await db.document_db.get_document_by_id(record.id, user_id))?.revision, 1);
+    assert.equal((await db.document_db.get_versions(record.id, user_id)).length, 1);
   });
 
   it("refuses another user's document, and a file that does not exist", async () => {
     const owner = await make_user(pool, "version-owner");
     const other = await make_user(pool, "version-other");
-    const document = await db.document_db.create_document(owner, null, [DocumentAuthor.USER]);
+    const record = await db.document_db.create_document(owner, null, [DocumentAuthor.USER]);
     const file_id = await make_file(pool, owner);
 
     assert.equal(
-      await db.document_db.add_version(document.id, other, 0, file_id, DocumentAuthor.USER, "body"),
+      await db.document_db.add_version(record.id, other, 0, file_id, DocumentAuthor.USER, "body"),
       null);
     await assert.rejects(
       () => db.document_db.add_version(
-        document.id, owner, 0, crypto.randomUUID(), DocumentAuthor.USER, "body"),
+        record.id, owner, 0, crypto.randomUUID(), DocumentAuthor.USER, "body"),
       /document_versions_file_id_fkey/);
-    assert.equal((await db.document_db.get_document_by_id(document.id, owner))?.revision, 0);
+    assert.equal((await db.document_db.get_document_by_id(record.id, owner))?.revision, 0);
   });
 
   it("shares one file between revisions, and keeps the file when the document goes", async () => {
     const user_id = await make_user(pool, "sharer");
-    const document = await db.document_db.create_document(user_id, "irb-protocol", BOTH);
+    const record = await db.document_db.create_document(user_id, "irb-protocol", BOTH);
     const file_id = await make_file(pool, user_id);
-    await db.document_db.add_version(document.id, user_id, 0, file_id, DocumentAuthor.USER, "aims");
-    await db.document_db.add_version(document.id, user_id, 1, file_id, DocumentAuthor.USER, "aims");
+    await db.document_db.add_version(record.id, user_id, 0, file_id, DocumentAuthor.USER, "aims");
+    await db.document_db.add_version(record.id, user_id, 1, file_id, DocumentAuthor.USER, "aims");
 
-    assert.equal(await db.document_db.delete_document(document.id, user_id), true);
+    assert.equal(await db.document_db.delete_document(record.id, user_id), true);
 
     const file = await pool.query("SELECT 1 FROM files WHERE id = $1", [file_id]);
     assert.equal(file.rows.length, 1);
@@ -205,26 +205,26 @@ describe("add_version", () => {
 describe("get_document_head", () => {
   it("has no file before the first write, then names the head version's file", async () => {
     const user_id = await make_user(pool, "head-reader");
-    const document = await db.document_db.create_document(user_id, "irb-protocol", BOTH);
+    const record = await db.document_db.create_document(user_id, "irb-protocol", BOTH);
     const first_file = await make_file(pool, user_id);
     const second_file = await make_file(pool, user_id);
 
-    const unwritten = await db.document_db.get_document_head(document.id, user_id);
-    assert.deepEqual(unwritten, { document, file_id: null });
+    const unwritten = await db.document_db.get_document_head(record.id, user_id);
+    assert.deepEqual(unwritten, { record, file_id: null });
 
-    await db.document_db.add_version(document.id, user_id, 0, first_file, DocumentAuthor.USER, "aims");
-    await db.document_db.add_version(document.id, user_id, 1, second_file, DocumentAuthor.USER, "aims");
-    const head = await db.document_db.get_document_head(document.id, user_id);
+    await db.document_db.add_version(record.id, user_id, 0, first_file, DocumentAuthor.USER, "aims");
+    await db.document_db.add_version(record.id, user_id, 1, second_file, DocumentAuthor.USER, "aims");
+    const head = await db.document_db.get_document_head(record.id, user_id);
 
-    assert.equal(head?.document.revision, 2);
+    assert.equal(head?.record.revision, 2);
     assert.equal(head?.file_id, second_file);
   });
 
   it("returns nothing for another user", async () => {
     const owner = await make_user(pool, "head-owner");
     const other = await make_user(pool, "head-other");
-    const document = await db.document_db.create_document(owner, null, []);
+    const record = await db.document_db.create_document(owner, null, []);
 
-    assert.equal(await db.document_db.get_document_head(document.id, other), null);
+    assert.equal(await db.document_db.get_document_head(record.id, other), null);
   });
 });

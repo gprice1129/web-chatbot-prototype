@@ -114,8 +114,8 @@ class DocumentDbService {
       [document_id, user_id]);
     assert(result.rows.length <= 1);
     if (result.rows.length === 0) return null;
-    const { head_file_id, ...document } = result.rows[0];
-    return { document, file_id: head_file_id };
+    const { head_file_id, ...record } = result.rows[0];
+    return { record, file_id: head_file_id };
   }
 
   // The version the head pointer names; null before the first write.

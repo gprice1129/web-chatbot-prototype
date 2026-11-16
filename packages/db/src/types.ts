@@ -150,6 +150,6 @@ interface DocumentVersion {
 // A document's row with the id of the file holding its current content, null
 // before the first write.
 interface DocumentHead {
-  document: DocumentRecord;
+  record: DocumentRecord;
   file_id: string | null;
 }
