@@ -37,6 +37,7 @@ describe("the common package interface", () => {
       "read_markdown",
       "read_secret",
       "read_text",
+      "sections_written",
       "separate_frontmatter",
       "unless_aborted",
       "write_section",

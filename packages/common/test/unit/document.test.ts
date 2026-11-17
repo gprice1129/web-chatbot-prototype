@@ -16,6 +16,7 @@ import {
   readonly_document,
   parse_document_sections,
   write_section,
+  sections_written,
   document_standing,
   type Document,
   type DocumentTemplate,
@@ -424,6 +425,45 @@ function after_writes(document: Document, ...writes: Partial<DocumentWrite>[]): 
   }
   return current;
 }
+
+describe("sections_written", () => {
+  // `document` after one more write, made later than those of `after_writes`.
+  const after_write = (document: Document, patch: Partial<DocumentWrite>): Document => {
+    const written = write_section(
+      TEMPLATE, document, write_of({ ...patch, revision: document.revision }), LATER);
+    assert.ok(written.ok);
+    return written.value;
+  };
+  const before = after_writes(built(), { author: DocumentAuthor.USER });
+
+  it("finds nothing written in a document left alone", () => {
+    assert.deepEqual(sections_written(before, before), []);
+  });
+
+  it("finds a section the earlier document lacks", () => {
+    const after = after_write(before, { section_id: "background", text: "Why it matters." });
+    assert.deepEqual(sections_written(before, after), ["background"]);
+  });
+
+  it("finds a section whose text or status changed", () => {
+    const reworded = after_write(before, { text: "1. Measure mortality." });
+    const restated = after_write(before, { status: SectionStatus.NEEDS_REVIEW });
+    assert.deepEqual(sections_written(before, reworded), ["aims"]);
+    assert.deepEqual(sections_written(before, restated), ["aims"]);
+  });
+
+  it("does not count a section rewritten the same by another author at another time", () => {
+    const after = after_write(before, { author: DocumentAuthor.ASSISTANT });
+    assert.notDeepEqual(after.sections["aims"], before.sections["aims"]);
+    assert.deepEqual(sections_written(before, after), []);
+  });
+
+  it("does not count a section the later document lacks", () => {
+    const after = after_write(before, { text: " " });
+    assert.deepEqual(Object.keys(after.sections), []);
+    assert.deepEqual(sections_written(before, after), []);
+  });
+});
 
 describe("document_standing", () => {
   it("counts every required section outstanding before anything is written", () => {

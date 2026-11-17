@@ -10,6 +10,7 @@ export {
   readonly_document,
   parse_document_sections,
   write_section,
+  sections_written,
   document_standing,
 }
 export type {
@@ -445,6 +446,34 @@ function write_section(
     sections: _sections_after(document.sections, write, now),
   };
   return { ok: true, value: written };
+}
+
+/*
+ * Idea: The sections one document holds that an earlier one lacks or holds
+ * with other content.
+ *
+ * (Document, Document) => string[]
+ * A section `after` lacks is not among them. Who wrote a section, and when,
+ * is not its content.
+ * Pure
+ * Public
+ */
+function sections_written(before: Document, after: Document): string[] {
+  return Object.keys(after.sections).filter((section_id) => {
+    if (!Object.hasOwn(before.sections, section_id)) return true;
+    return !_same_content(before.sections[section_id], after.sections[section_id]);
+  });
+}
+
+/*
+ * Idea: Two sections that say the same thing and stand the same.
+ *
+ * (DocumentSection, DocumentSection) => boolean
+ * Pure
+ * Private
+ */
+function _same_content(a: DocumentSection, b: DocumentSection): boolean {
+  return a.text === b.text && a.status === b.status;
 }
 
 /*

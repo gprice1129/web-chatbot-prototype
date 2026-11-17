@@ -78,6 +78,7 @@ export {
   find_document_template,
   load_document_templates,
   parse_document_sections,
+  sections_written,
   write_section,
 } from "#common/document.js";
 
